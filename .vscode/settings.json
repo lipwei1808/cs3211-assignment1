@@ -54,6 +54,10 @@
     "unordered_map": "cpp",
     "variant": "cpp",
     "vector": "cpp",
-    "algorithm": "cpp"
+    "algorithm": "cpp",
+    "deque": "cpp",
+    "queue": "cpp",
+    "set": "cpp",
+    "__tree": "cpp"
   }
 }

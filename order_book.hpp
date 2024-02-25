@@ -1,37 +1,58 @@
 #ifndef _ORDER_BOOK_HPP_
 #define _ORDER_BOOK_HPP_
 #include <unordered_map>
+#include <map>
 #include <vector>
 #include <string>
-#include <queue>
+#include <memory>
 
-#include "Order.hpp"
-#include "Price.hpp"
+#include "order.hpp"
+#include "price.hpp"
 
-auto BidsComparator = [](const Price &x, const Price &y)
+struct PriceComparator
 {
-  return x.GetPrice() > y.GetPrice();
-};
-
-auto AsksComparator = [](const Price &x, const Price &y)
-{
-  return x.GetPrice() < y.GetPrice();
+  Side side;
+  PriceComparator(Side side) : side(side) {}
+  bool operator()(const Price &x, const Price &y)
+  {
+    switch (side)
+    {
+    case Side::BUY:
+    {
+      return x.GetPrice() > y.GetPrice();
+    }
+    case Side::SELL:
+    {
+      return x.GetPrice() > y.GetPrice();
+    }
+    default:
+    {
+      throw std::runtime_error("price comparator fail");
+    }
+    }
+  }
 };
 
 class OrderBook
 {
 public:
   OrderBook() = default;
-  void AddOrder(Order &order);
-  bool ExecuteOrder(Order &order);
+  void CancelOrder(std::shared_ptr<Order> order);
+  bool ExecuteOrder(std::shared_ptr<Order> order);
 
 private:
+  using Prices = std::map<price_t, std::shared_ptr<Price>, PriceComparator>;
   struct OrderBookEntry
   {
-    std::priority_queue<Price, std::vector<Price>, decltype(BidsComparator)> bids;
-    std::priority_queue<Price, std::vector<Price>, decltype(AsksComparator)> asks;
+    Prices bids;
+    Prices asks;
   };
-  std::unordered_map<order_id_t, struct OrderBookEntry> order_book;
+  bool MatchBuy(std::shared_ptr<Order> order);
+  bool MatchSell(std::shared_ptr<Order> order);
+  bool AddOrder(std::shared_ptr<Order> order, std::shared_ptr<Price>);
+  OrderBookEntry GetOrderBookEntry(instrument_id_t instrument);
+
+  std::unordered_map<instrument_id_t, struct OrderBookEntry> order_book;
 };
 
 #endif
