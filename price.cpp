@@ -1,8 +1,9 @@
 #include <memory>
+#include <queue>
 #include "price.hpp"
 #include "order.hpp"
 
-Price::Price(unsigned int price) : price(price) {}
+Price::Price(unsigned int price) : price(price), orders(std::queue<std::shared_ptr<Order>>()) {}
 
 bool Price::AddOrder(std::shared_ptr<Order> order)
 {

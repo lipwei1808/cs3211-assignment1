@@ -5,12 +5,7 @@
 
 bool OrderBook::ExecuteOrder(std::shared_ptr<Order> order)
 {
-  instrument_id_t instrument = order->GetInstrumentId();
-  if (order_book.find(instrument) == order_book.end())
-  {
-    order_book[instrument] = OrderBookEntry();
-  }
-  struct OrderBookEntry obe = order_book[instrument];
+  struct OrderBookEntry obe = GetOrderBookEntry(order->GetInstrumentId());
   switch (order->GetSide())
   {
   case Side::BUY:
@@ -19,7 +14,7 @@ bool OrderBook::ExecuteOrder(std::shared_ptr<Order> order)
     {
       return true;
     }
-    return AddOrder(order);
+    return AddOrder(order, obe.bids);
   }
   case Side::SELL:
   {
@@ -27,7 +22,7 @@ bool OrderBook::ExecuteOrder(std::shared_ptr<Order> order)
     {
       return true;
     }
-    return AddOrder(order);
+    return AddOrder(order, obe.asks);
   }
   default:
   {
@@ -36,7 +31,9 @@ bool OrderBook::ExecuteOrder(std::shared_ptr<Order> order)
   }
 }
 
-bool OrderBook::AddOrder(std::shared_ptr<Order> order, std::shared_ptr<Price>) {}
+bool OrderBook::AddOrder(std::shared_ptr<Order> order, Prices &prices)
+{
+}
 
 /**
  * Search the asks OrderBookEntry and check if there is
@@ -48,12 +45,20 @@ bool OrderBook::MatchBuy(std::shared_ptr<Order> order)
 
 bool OrderBook::MatchSell(std::shared_ptr<Order> order) {}
 
-OrderBook::OrderBookEntry OrderBook::GetOrderBookEntry(instrument_id_t instrument)
+OrderBook::OrderBookEntry &OrderBook::GetOrderBookEntry(instrument_id_t instrument)
 {
   if (order_book.find(instrument) == order_book.end())
   {
-    OrderBookEntry obe({.bids = Prices(Side::BUY), .asks = Prices(Side::SELL)});
+    OrderBookEntry obe({.bids = Prices(Side::BUY), .asks = Prices(Side::SELL), .bids_mutex = std::mutex(), .asks_mutex = std::mutex()});
     order_book.insert({instrument, obe});
   }
   return order_book[instrument];
+}
+
+std::shared_ptr<Price> OrderBook::GetPrice(price_t price, Prices &prices)
+{
+  if (prices.find(price) == prices.end())
+  {
+  }
+  return prices[price];
 }
