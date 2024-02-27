@@ -3,10 +3,9 @@
 #include <memory>
 
 #include "io.hpp"
-#include "order_book.hpp"
 #include "engine.hpp"
 
-Engine::Engine() : order_book(OrderBook()) {}
+Engine::Engine() {}
 
 void Engine::accept(ClientConnection connection)
 {
@@ -53,8 +52,6 @@ void Engine::connection_thread(ClientConnection connection)
 			// Remember to take timestamp at the appropriate time, or compute
 			// an appropriate timestamp!
 			auto output_time = getCurrentTimestamp();
-			order_book.ExecuteOrder(std::make_shared<Order>(
-					input.order_id, input.instrument, input.price, input.count, "", output_time));
 			Output::OrderAdded(input.order_id, input.instrument, input.price, input.count, input.type == input_sell,
 												 output_time);
 			break;

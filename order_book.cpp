@@ -19,7 +19,7 @@ bool OrderBook::ExecuteOrder(std::shared_ptr<Order> order)
     {
       return true;
     }
-    return AddOrder(order);
+    return true;
   }
   case Side::SELL:
   {
@@ -27,7 +27,7 @@ bool OrderBook::ExecuteOrder(std::shared_ptr<Order> order)
     {
       return true;
     }
-    return AddOrder(order);
+    return true;
   }
   default:
   {
@@ -36,7 +36,10 @@ bool OrderBook::ExecuteOrder(std::shared_ptr<Order> order)
   }
 }
 
-bool OrderBook::AddOrder(std::shared_ptr<Order> order, std::shared_ptr<Price>) {}
+bool OrderBook::AddOrder(std::shared_ptr<Order> order, std::shared_ptr<Price>)
+{
+  return true;
+}
 
 /**
  * Search the asks OrderBookEntry and check if there is
@@ -44,9 +47,13 @@ bool OrderBook::AddOrder(std::shared_ptr<Order> order, std::shared_ptr<Price>) {
  */
 bool OrderBook::MatchBuy(std::shared_ptr<Order> order)
 {
+  return true;
 }
 
-bool OrderBook::MatchSell(std::shared_ptr<Order> order) {}
+bool OrderBook::MatchSell(std::shared_ptr<Order> order)
+{
+  return true;
+}
 
 OrderBook::OrderBookEntry OrderBook::GetOrderBookEntry(instrument_id_t instrument)
 {
