@@ -10,13 +10,3 @@ Order::Order(
       count(count),
       side(side),
       timestamp(timestamp) {}
-
-Side Order::GetSide() const
-{
-  return side;
-}
-
-instrument_id_t Order::GetInstrumentId() const
-{
-  return instrument;
-}

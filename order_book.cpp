@@ -14,7 +14,7 @@ bool OrderBook::ExecuteOrder(std::shared_ptr<Order> order)
     {
       return true;
     }
-    return AddOrder(order, obe.bids);
+    return true;
   }
   case Side::SELL:
   {
@@ -22,7 +22,7 @@ bool OrderBook::ExecuteOrder(std::shared_ptr<Order> order)
     {
       return true;
     }
-    return AddOrder(order, obe.asks);
+    return true;
   }
   default:
   {
@@ -31,8 +31,9 @@ bool OrderBook::ExecuteOrder(std::shared_ptr<Order> order)
   }
 }
 
-bool OrderBook::AddOrder(std::shared_ptr<Order> order, Prices &prices)
+bool OrderBook::AddOrder(std::shared_ptr<Order> order, std::shared_ptr<Price>)
 {
+  return true;
 }
 
 /**
@@ -41,9 +42,13 @@ bool OrderBook::AddOrder(std::shared_ptr<Order> order, Prices &prices)
  */
 bool OrderBook::MatchBuy(std::shared_ptr<Order> order)
 {
+  return true;
 }
 
-bool OrderBook::MatchSell(std::shared_ptr<Order> order) {}
+bool OrderBook::MatchSell(std::shared_ptr<Order> order)
+{
+  return true;
+}
 
 OrderBook::OrderBookEntry &OrderBook::GetOrderBookEntry(instrument_id_t instrument)
 {

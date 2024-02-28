@@ -6,7 +6,6 @@
 
 #include <chrono>
 
-#include "order_book.hpp"
 #include "io.hpp"
 
 struct Engine
@@ -17,7 +16,6 @@ public:
 
 private:
 	void connection_thread(ClientConnection conn);
-	OrderBook order_book;
 };
 
 inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept

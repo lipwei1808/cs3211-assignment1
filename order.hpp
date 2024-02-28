@@ -17,13 +17,35 @@ class Order
 {
 public:
   Order(unsigned int order_id, std::string instrument, unsigned int price, unsigned int count, Side side, std::chrono::microseconds::rep timestamp);
-  Side GetSide() const;
-  instrument_id_t GetInstrumentId() const;
+  order_id_t GetOrderId() const
+  {
+    return order_id;
+  }
+  instrument_id_t GetInstrumentId() const
+  {
+    return instrument;
+  }
+  price_t GetPrice() const
+  {
+    return price;
+  }
+  unsigned int GetCount() const
+  {
+    return count;
+  }
+  Side GetSide() const
+  {
+    return side;
+  }
+  std::chrono::microseconds::rep GetTimestamp()
+  {
+    return timestamp;
+  }
 
 private:
   order_id_t order_id;
   instrument_id_t instrument;
-  unsigned int price;
+  price_t price;
   unsigned int count;
   Side side; // TODO: enum
   std::chrono::microseconds::rep timestamp;
