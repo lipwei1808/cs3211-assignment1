@@ -5,17 +5,23 @@
 #define ENGINE_HPP
 
 #include <chrono>
+#include <memory>
 
 #include "io.hpp"
+#include "atomic_map.hpp"
+#include "order_book.hpp"
+#include "order.hpp"
 
 struct Engine
 {
 public:
 	Engine();
 	void accept(ClientConnection conn);
+	std::shared_ptr<OrderBook> GetOrderBook(instrument_id_t instrument);
 
 private:
 	void connection_thread(ClientConnection conn);
+	AtomicMap<instrument_id_t, std::shared_ptr<OrderBook>> instruments;
 };
 
 inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
