@@ -13,20 +13,20 @@ TEST_SRCS = atomic_map_test.cpp
 all: engine client test
 
 engine: $(SRCS:%=$(BUILDDIR)/%.o)
-	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@
+	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $(BUILDDIR)/$@
 
 client: $(BUILDDIR)/client.cpp.o
-	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@
+	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $(BUILDDIR)/$@
 
 test: $(BUILD_TEST_DIR) gen-test
 
 gen-test: $(TEST_SRCS:%=$(BUILD_TEST_DIR)/%.o)
-	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@
+	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $(BUILDDIR)/$@
 
 .PHONY: clean
 clean:
 	rm -rf $(BUILDDIR)
-	rm -f client engine
+	rm -f client engine gen-test
 
 DEPFLAGS = -MT $@ -MMD -MP -MF $(BUILDDIR)/$<.d
 COMPILE.cpp = $(CXX) $(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c

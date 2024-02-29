@@ -8,7 +8,7 @@ template <typename K, typename V>
 class AtomicMap
 {
 public:
-  V Get(K key)
+  V &Get(K key)
   {
     if (map.find(key) != map.end())
     {
@@ -19,7 +19,7 @@ public:
   }
 
 private:
-  V Create(K key)
+  V &Create(K key)
   {
     std::unique_lock<std::mutex> lock(mutex);
     if (map.find(key) == map.end())
