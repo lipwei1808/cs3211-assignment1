@@ -1,5 +1,5 @@
-#ifndef _ATOMIC_MAP_HPP_
-#define _ATOMIC_MAP_HPP_
+#ifndef ATOMIC_MAP_HPP
+#define ATOMIC_MAP_HPP
 
 #include <mutex>
 #include <map>

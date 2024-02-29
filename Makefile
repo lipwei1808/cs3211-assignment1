@@ -9,7 +9,7 @@ BUILDDIR = build
 BUILD_TEST_DIR = build/unit_tests
 
 SRCS = main.cpp engine.cpp io.cpp 
-TEST_SRCS = atomic_map_test.cpp
+TEST_SRCS = atomic_map_test.cpp order_book_test.cpp
 
 all: engine client test
 

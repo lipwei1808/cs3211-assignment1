@@ -1,5 +1,5 @@
-#ifndef _PRICE_HPP_
-#define _PRICE_HPP_
+#ifndef PRICE_HPP
+#define PRICE_HPP
 #include <queue>
 #include <memory>
 #include "order.hpp"
