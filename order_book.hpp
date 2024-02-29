@@ -38,8 +38,11 @@ class OrderBook
 {
 public:
   OrderBook() = default;
-  bool ExecuteOrder(Order &order);
-  bool CancelOrder(Order &order);
+  // bool ExecuteOrder(Order &order)
+  // {
+  //   return true;
+  // }
+  // bool CancelOrder(Order &order);
 
 private:
   AtomicMap<price_t, std::shared_ptr<Price>, PriceComparator> bids;

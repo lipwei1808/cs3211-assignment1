@@ -4,6 +4,9 @@
 #include <chrono>
 #include <iostream>
 #include <assert.h>
+
+#include "../order_book.hpp"
+#include "../order.hpp"
 #include "../atomic_map.hpp"
 
 struct test
@@ -122,6 +125,29 @@ bool test_sort_atomic_map_greater_sort()
     }
   }
   std::cout << "Ending [test_sort_atomic_map_greater_sort]\n\n";
+  return true;
+}
+
+bool test_sort_atomic_map_custom_sort()
+{
+  std::cout << "\nStarting [test_sort_atomic_map_greater_sort]\n";
+  AtomicMap<int, char, PriceComparator> map(PriceComparator{Side::BUY});
+  // map.Get(8);
+  // map.Get(2);
+  // map.Get(5);
+  // map.Get(9);
+  // map.Get(1);
+  // int last = -1;
+  // for (auto [_, v] : map.map)
+  // {
+  //   {
+  //     if (last == -1 || last >= v)
+  //       last = v;
+  //     else
+  //       return false;
+  //   }
+  // }
+  // std::cout << "Ending [test_sort_atomic_map_greater_sort]\n\n";
   return true;
 }
 
