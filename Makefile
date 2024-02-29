@@ -2,7 +2,8 @@ CC = clang
 CXX = clang++
 
 CFLAGS := $(CFLAGS) -g -O3 -Wall -Wextra -pedantic -Werror -std=c18 -pthread
-CXXFLAGS := $(CXXFLAGS) -g -O3 -Wall -Wextra -pedantic -Werror -std=c++20 -pthread
+CXX_TEST_FLAGS := $(CXX_TEST_FLAGS) -g -O3 -Wall -Wextra -pedantic -std=c++20 -pthread
+CXXFLAGS := $(CXX_TEST_FLAGS) -Werror 
 
 BUILDDIR = build
 BUILD_TEST_DIR = build/unit_tests
@@ -18,23 +19,21 @@ engine: $(SRCS:%=$(BUILDDIR)/%.o)
 client: $(BUILDDIR)/client.cpp.o
 	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $(BUILDDIR)/$@
 
-test: $(BUILD_TEST_DIR) gen-test
-
-gen-test: $(TEST_SRCS:%=$(BUILD_TEST_DIR)/%.o)
+test: $(TEST_SRCS:%=$(BUILD_TEST_DIR)/%.o)
 	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $(BUILDDIR)/$@
 
 .PHONY: clean
 clean:
 	rm -rf $(BUILDDIR)
-	rm -f client engine gen-test
 
 DEPFLAGS = -MT $@ -MMD -MP -MF $(BUILDDIR)/$<.d
 COMPILE.cpp = $(CXX) $(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+COMPILE_TEST.cpp = $(CXX) $(DEPFLAGS) $(CXX_TEST_FLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+
+$(BUILD_TEST_DIR)/%.cpp.o: unit_tests/%.cpp | $(BUILD_TEST_DIR)
+	$(COMPILE_TEST.cpp) $(OUTPUT_OPTION) $<
 
 $(BUILDDIR)/%.cpp.o: %.cpp | $(BUILDDIR)
-	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
-
-$(BUILD_TEST_DIR)/%.cpp.o: unit_tests/%.cpp 
 	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
 $(BUILDDIR): ; @mkdir -p $@
