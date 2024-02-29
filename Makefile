@@ -19,8 +19,11 @@ engine: $(SRCS:%=$(BUILDDIR)/%.o)
 client: $(BUILDDIR)/client.cpp.o
 	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $(BUILDDIR)/$@
 
-test: $(TEST_SRCS:%=$(BUILD_TEST_DIR)/%.o)
-	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $(BUILDDIR)/$@
+test: $(TEST_SRCS:%.cpp=$(BUILD_TEST_DIR)/%)
+
+# Rule to link each test executable
+$(BUILD_TEST_DIR)/%: $(BUILD_TEST_DIR)/%.cpp.o
+	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 .PHONY: clean
 clean:
