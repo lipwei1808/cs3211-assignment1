@@ -1,3 +1,4 @@
+#define private public
 #include <string>
 #include <thread>
 #include <chrono>
@@ -80,11 +81,57 @@ bool test_get_multiple_thread()
   return true;
 }
 
+bool test_sort_atomic_map_no_sorter()
+{
+  std::cout << "\nStarting [test_sort_atomic_map_no_sorter]\n";
+  AtomicMap<int, char> map;
+  map.Get(8);
+  map.Get(2);
+  map.Get(5);
+  map.Get(9);
+  map.Get(1);
+  int last = -1;
+  for (auto [_, v] : map.map)
+  {
+    if (last > v)
+      return false;
+    else
+      last = v;
+  }
+  std::cout << "Ending [test_sort_atomic_map_no_sorter]\n\n";
+  return true;
+}
+
+bool test_sort_atomic_map_greater_sort()
+{
+  std::cout << "\nStarting [test_sort_atomic_map_greater_sort]\n";
+  AtomicMap<int, char, std::greater<int>> map;
+  map.Get(8);
+  map.Get(2);
+  map.Get(5);
+  map.Get(9);
+  map.Get(1);
+  int last = -1;
+  for (auto [_, v] : map.map)
+  {
+    {
+      if (last == -1 || last >= v)
+        last = v;
+      else
+        return false;
+    }
+  }
+  std::cout << "Ending [test_sort_atomic_map_greater_sort]\n\n";
+  return true;
+}
+
 int main()
 {
   std::cout << "Starting unit test\n";
   assert(test_get_single_thread());
   assert(test_return_reference());
   assert(test_get_multiple_thread());
+  assert(test_sort_atomic_map_no_sorter());
+  assert(test_sort_atomic_map_greater_sort());
   std::cout << "Success\n";
 }

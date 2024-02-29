@@ -2,9 +2,9 @@
 #define _ATOMIC_MAP_HPP_
 
 #include <mutex>
-#include <unordered_map>
+#include <map>
 
-template <typename K, typename V>
+template <typename K, typename V, typename Comparator = std::less<K>>
 class AtomicMap
 {
 public:
@@ -31,7 +31,7 @@ private:
   }
 
   std::mutex mutex;
-  std::unordered_map<K, V> map;
+  std::map<K, V, Comparator> map;
 };
 
 #endif
