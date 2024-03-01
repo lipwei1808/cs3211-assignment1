@@ -1,14 +1,14 @@
-#ifndef _ATOMIC_MAP_HPP_
-#define _ATOMIC_MAP_HPP_
+#ifndef ATOMIC_MAP_HPP
+#define ATOMIC_MAP_HPP
 
 #include <mutex>
-#include <unordered_map>
+#include <map>
 
-template <typename K, typename V>
+template <typename K, typename V, typename Comparator = std::less<K>>
 class AtomicMap
 {
 public:
-  V Get(K key)
+  V &Get(K key)
   {
     if (map.find(key) != map.end())
     {
@@ -19,7 +19,7 @@ public:
   }
 
 private:
-  V Create(K key)
+  V &Create(K key)
   {
     std::unique_lock<std::mutex> lock(mutex);
     if (map.find(key) == map.end())
@@ -31,7 +31,7 @@ private:
   }
 
   std::mutex mutex;
-  std::unordered_map<K, V> map;
+  std::map<K, V, Comparator> map;
 };
 
 #endif

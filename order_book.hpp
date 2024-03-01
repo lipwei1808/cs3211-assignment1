@@ -1,5 +1,5 @@
-#ifndef _ORDER_BOOK_HPP_
-#define _ORDER_BOOK_HPP_
+#ifndef ORDER_BOOK_HPP
+#define ORDER_BOOK_HPP
 #include <unordered_map>
 #include <mutex>
 #include <map>
@@ -7,30 +7,47 @@
 #include <string>
 #include <memory>
 
+#include "atomic_map.hpp"
 #include "order.hpp"
 #include "price.hpp"
-#include "prices.hpp"
+
+struct PriceComparator
+{
+  Side side;
+  PriceComparator(Side side) : side(side) {}
+  bool operator()(const std::shared_ptr<Price> &x, const std::shared_ptr<Price> &y)
+  {
+    switch (side)
+    {
+    case Side::BUY:
+    {
+      return x->GetPrice() > y->GetPrice();
+    }
+    case Side::SELL:
+    {
+      return x->GetPrice() < y->GetPrice();
+    }
+    default:
+    {
+      throw std::runtime_error("price comparator fail");
+    }
+    }
+  }
+};
 
 class OrderBook
 {
 public:
   OrderBook() = default;
-  void CancelOrder(std::shared_ptr<Order> order);
-  bool ExecuteOrder(std::shared_ptr<Order> order);
+  // bool ExecuteOrder(Order &order)
+  // {
+  //   return true;
+  // }
+  // bool CancelOrder(Order &order);
 
 private:
-  struct OrderBookEntry
-  {
-    Prices bids;
-    Prices asks;
-  };
-  bool MatchBuy(std::shared_ptr<Order> order);
-  bool MatchSell(std::shared_ptr<Order> order);
-  bool AddOrder(std::shared_ptr<Order> order, Prices &prices);
-  OrderBookEntry &GetOrderBookEntry(instrument_id_t instrument);
-  std::shared_ptr<Price> GetPrice(price_t price, Prices &prices);
-
-  std::unordered_map<instrument_id_t, struct OrderBookEntry> order_book;
+  AtomicMap<price_t, std::shared_ptr<Price>, PriceComparator> bids;
+  AtomicMap<price_t, std::shared_ptr<Price>, PriceComparator> asks;
 };
 
 #endif

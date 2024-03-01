@@ -3,6 +3,8 @@
 #include <memory>
 
 #include "io.hpp"
+#include "order_book.hpp"
+#include "order.hpp"
 #include "engine.hpp"
 
 Engine::Engine() {}
@@ -67,4 +69,9 @@ void Engine::connection_thread(ClientConnection connection)
 		// Check the parameter names in `io.hpp`.
 		Output::OrderExecuted(123, 124, 1, 2000, 10, output_time);
 	}
+}
+
+std::shared_ptr<OrderBook> Engine::GetOrderBook(instrument_id_t instrument)
+{
+	return instruments.Get(instrument);
 }
