@@ -42,6 +42,10 @@ public:
     return timestamp;
   }
 
+  void SetTimestamp(std::chrono::microseconds::rep tm) {
+    timestamp = tm;
+  }
+
 private:
   order_id_t order_id;
   instrument_id_t instrument;

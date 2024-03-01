@@ -8,6 +8,9 @@ template <typename K, typename V, typename Comparator = std::less<K>>
 class AtomicMap
 {
 public:
+  AtomicMap() = default;
+  AtomicMap(const Comparator &comp) : map(comp) {}
+
   V &Get(K key)
   {
     if (map.find(key) != map.end())
@@ -16,6 +19,11 @@ public:
     }
 
     return Create(key);
+  }
+
+  size_t Size() const
+  {
+    return map.size();
   }
 
 private:
