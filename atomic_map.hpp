@@ -26,6 +26,21 @@ public:
     return map.size();
   }
 
+  std::map<K, V, Comparator>::iterator begin()
+  {
+    return map.begin();
+  }
+
+  std::map<K, V, Comparator>::iterator end()
+  {
+    return map.end();
+  }
+
+  size_t Erase(const K &key)
+  {
+    return map.erase(key);
+  }
+
 private:
   V &Create(K key)
   {

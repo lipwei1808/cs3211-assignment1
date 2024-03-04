@@ -20,33 +20,26 @@ private:
 
   bool HandleSell(Order &order)
   {
-    assert(order.side == Side::BUY);
+    assert(order.GetSide() == Side::BUY);
     std::unique_lock<std::mutex> l(order_book_lock);
     return true;
   }
 
   bool ExecuteBuy(Order &order)
   {
-    assert(order.side == Side::BUY);
+    assert(order.GetSide() == Side::BUY);
     std::unique_lock<std::mutex> l(order_book_lock);
     return true;
   }
   bool ExecuteSell(Order &order)
   {
 
-    assert(order.side == Side::SELL);
+    assert(order.GetSide() == Side::SELL);
     std::unique_lock<std::mutex> l(order_book_lock);
     return true;
   }
 
-  template <typename S>
-  bool Add(Order &order, AtomicMap<price_t, std::shared_ptr<Price>, S> &map)
-  {
-
-    assert(order.GetSide() == Side::BUY);
-    std::unique_lock<std::mutex> l(bids_lock);
-    return true;
-  }
+  bool AddBuy(Order &order);
 
   AtomicMap<price_t, std::shared_ptr<Price>, std::greater<price_t>> bids;
   AtomicMap<price_t, std::shared_ptr<Price>> asks;

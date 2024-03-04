@@ -60,6 +60,8 @@
     "set": "cpp",
     "__tree": "cpp",
     "map": "cpp",
-    "chrono": "cpp"
+    "chrono": "cpp",
+    "shared_mutex": "cpp",
+    "condition_variable": "cpp"
   }
 }

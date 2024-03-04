@@ -10,7 +10,7 @@ bool Price::AddOrder(std::shared_ptr<Order> order)
   orders.push(order);
 }
 
-std::shared_ptr<Order> Price::PopOrder()
+std::shared_ptr<Order> Price::Front()
 {
   if (orders.size() == 0)
   {
@@ -18,8 +18,15 @@ std::shared_ptr<Order> Price::PopOrder()
   }
 
   std::shared_ptr<Order> order = orders.front();
-  orders.pop();
   return order;
+}
+
+void Price::Pop()
+{
+  if (orders.size() > 0)
+  {
+    orders.pop();
+  }
 }
 
 size_t Price::Size() const

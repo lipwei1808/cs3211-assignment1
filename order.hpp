@@ -2,6 +2,8 @@
 #define ORDER_HPP
 
 #include <string>
+#include <mutex>
+#include <condition_variable>
 
 typedef unsigned int order_id_t;
 typedef std::string instrument_id_t;
@@ -42,17 +44,45 @@ public:
     return timestamp;
   }
 
-  void SetTimestamp(std::chrono::microseconds::rep tm) {
+  void SetTimestamp(std::chrono::microseconds::rep tm)
+  {
     timestamp = tm;
   }
+
+  bool GetActivated() const
+  {
+    return activated;
+  }
+
+  void Fill()
+  {
+    Fill(count);
+  }
+
+  void Fill(unsigned int qty)
+  {
+    count = qty >= count ? 0 : count - qty;
+  }
+
+  void Activate()
+  {
+    std::unique_lock<std::mutex> l(lock);
+    activated = true;
+    cv.notify_all();
+  }
+
+  std::condition_variable cv;
 
 private:
   order_id_t order_id;
   instrument_id_t instrument;
   price_t price;
   unsigned int count;
-  Side side; // TODO: enum
+  Side side;
   std::chrono::microseconds::rep timestamp;
+  bool activated;
+
+  std::mutex lock;
 };
 
 #endif

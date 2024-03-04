@@ -1,6 +1,7 @@
 #define private public
 #include <string>
 #include <thread>
+#include <vector>
 #include <chrono>
 #include <iostream>
 #include <assert.h>
@@ -128,26 +129,25 @@ bool test_sort_atomic_map_greater_sort()
   return true;
 }
 
-bool test_sort_atomic_map_custom_sort()
+bool test_iterators()
 {
-  std::cout << "\nStarting [test_sort_atomic_map_greater_sort]\n";
-  AtomicMap<price_t, char, PriceComparator> map(PriceComparator{Side::BUY});
-  map.Get(8);
-  map.Get(2);
+  std::cout << "\nStarting [test_iterators]\n";
+  AtomicMap<int, char> map;
   map.Get(5);
-  map.Get(9);
+  map.Get(2);
+  map.Get(3);
   map.Get(1);
-  int last = -1;
-  for (auto [_, v] : map.map)
+  std::vector<int> answers({1, 2, 3, 5});
+  int i = 0;
+  for (auto s = map.begin(); s != map.end(); s++)
   {
+    if (s->first != answers[i])
     {
-      if (last == -1 || last >= v)
-        last = v;
-      else
-        return false;
+      return false;
     }
+    i++;
   }
-  std::cout << "Ending [test_sort_atomic_map_greater_sort]\n\n";
+  std::cout << "Ending [test_iterators]\n\n";
   return true;
 }
 
@@ -159,5 +159,6 @@ int main()
   assert(test_get_multiple_thread());
   assert(test_sort_atomic_map_no_sorter());
   assert(test_sort_atomic_map_greater_sort());
+  assert(test_iterators());
   std::cout << "Success\n";
 }
