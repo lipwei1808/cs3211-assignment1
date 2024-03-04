@@ -41,16 +41,19 @@ bool OrderBook::HandleBuy(Order &order)
   return true;
 }
 
+bool OrderBook::AddBuy(Order &order)
+{
+  assert(order.GetSide() == Side::BUY);
+  std::unique_lock<std::mutex> l(bids_lock);
+  std::shared_ptr<Price> p = bids.Get(order.GetPrice());
+  p->AddOrder(std::make_shared<Order>(order));
+  return true;
+}
+
 bool OrderBook::ExecuteBuy(Order &order)
 {
   assert(order.GetSide() == Side::BUY);
   assert(order.GetActivated() == false);
-  std::unique_lock<std::mutex> l(asks_lock);
-}
-
-bool OrderBook::AddBuy(Order &order)
-{
-  assert(order.GetSide() == Side::BUY);
   std::unique_lock<std::mutex> l(asks_lock);
 
   while (order.GetCount() > 0)
