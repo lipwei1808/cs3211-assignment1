@@ -34,12 +34,12 @@ enum class ReadResult
 struct ClientConnection
 {
 	~ClientConnection() { this->freeHandle(); }
-	explicit ClientConnection(int handle) : m_handle(handle) { }
+	explicit ClientConnection(int handle) : m_handle(handle) {}
 
-	ClientConnection(ClientConnection&& other) : m_handle(std::exchange(other.m_handle, -1)) { }
-	ClientConnection& operator=(ClientConnection&& other)
+	ClientConnection(ClientConnection &&other) : m_handle(std::exchange(other.m_handle, -1)) {}
+	ClientConnection &operator=(ClientConnection &&other)
 	{
-		if(&other == this)
+		if (&other == this)
 			return *this;
 
 		this->freeHandle();
@@ -48,10 +48,10 @@ struct ClientConnection
 		return *this;
 	}
 
-	ClientConnection(const ClientConnection&) = delete;
-	ClientConnection& operator=(const ClientConnection&) = delete;
+	ClientConnection(const ClientConnection &) = delete;
+	ClientConnection &operator=(const ClientConnection &) = delete;
 
-	ReadResult readInput(ClientCommand& read_into);
+	ReadResult readInput(ClientCommand &read_into);
 
 private:
 	int m_handle;
@@ -63,16 +63,16 @@ private:
 struct SyncCout
 {
 	static std::mutex mut;
-	std::scoped_lock<std::mutex> lock { SyncCout::mut };
+	std::scoped_lock<std::mutex> lock{SyncCout::mut};
 
 	template <typename T>
-	friend const SyncCout& operator<<(const SyncCout& s, T&& v)
+	friend const SyncCout &operator<<(const SyncCout &s, T &&v)
 	{
 		std::cout << std::forward<T>(v);
 		return s;
 	}
 
-	friend const SyncCout& operator<<(const SyncCout& s, std::ostream& (*f)(std::ostream&) )
+	friend const SyncCout &operator<<(const SyncCout &s, std::ostream &(*f)(std::ostream &))
 	{
 		std::cout << f;
 		return s;
@@ -84,16 +84,16 @@ struct SyncCout
 struct SyncCerr
 {
 	static std::mutex mut;
-	std::scoped_lock<std::mutex> lock { SyncCerr::mut };
+	std::scoped_lock<std::mutex> lock{SyncCerr::mut};
 
 	template <typename T>
-	friend const SyncCerr& operator<<(const SyncCerr& s, T&& v)
+	friend const SyncCerr &operator<<(const SyncCerr &s, T &&v)
 	{
 		std::cerr << std::forward<T>(v);
 		return s;
 	}
 
-	friend const SyncCerr& operator<<(const SyncCerr& s, std::ostream& (*f)(std::ostream&) )
+	friend const SyncCerr &operator<<(const SyncCerr &s, std::ostream &(*f)(std::ostream &))
 	{
 		std::cerr << f;
 		return s;
@@ -104,43 +104,43 @@ class Output
 {
 public:
 	inline static void
-	OrderAdded(uint32_t id, const char* symbol, uint32_t price, uint32_t count, bool is_sell_side, intmax_t output_timestamp)
+	OrderAdded(uint32_t id, const char *symbol, uint32_t price, uint32_t count, bool is_sell_side, intmax_t output_timestamp)
 	{
 		SyncCout()
-		    << (is_sell_side ? "S " : "B ") //
-		    << id << " "                    //
-		    << symbol << " "                //
-		    << price << " "                 //
-		    << count << " "                 //
-		    << output_timestamp             //
-		    << std::endl;
+				<< (is_sell_side ? "S " : "B ") //
+				<< id << " "										//
+				<< symbol << " "								//
+				<< price << " "									//
+				<< count << " "									//
+				<< output_timestamp							//
+				<< std::endl;
 	}
 
 	inline static void OrderExecuted(uint32_t resting_id,
-	    uint32_t new_id,
-	    uint32_t execution_id,
-	    uint32_t price,
-	    uint32_t count,
-	    intmax_t output_timestamp)
+																	 uint32_t new_id,
+																	 uint32_t execution_id,
+																	 uint32_t price,
+																	 uint32_t count,
+																	 intmax_t output_timestamp)
 	{
 		SyncCout()
-		    << "E "                //
-		    << resting_id << " "   //
-		    << new_id << " "       //
-		    << execution_id << " " //
-		    << price << " "        //
-		    << count << " "        //
-		    << output_timestamp    //
-		    << std::endl;
+				<< "E "								 //
+				<< resting_id << " "	 //
+				<< new_id << " "			 //
+				<< execution_id << " " //
+				<< price << " "				 //
+				<< count << " "				 //
+				<< output_timestamp		 //
+				<< std::endl;
 	}
 
 	inline static void OrderDeleted(uint32_t id, bool cancel_accepted, intmax_t output_timestamp)
 	{
 		SyncCout()
-		    << "X "                            //
-		    << id << " "                       //
-		    << (cancel_accepted ? "A " : "R ") //
-		    << output_timestamp                //
-		    << std::endl;
+				<< "X "														 //
+				<< id << " "											 //
+				<< (cancel_accepted ? "A " : "R ") //
+				<< output_timestamp								 //
+				<< std::endl;
 	}
 };

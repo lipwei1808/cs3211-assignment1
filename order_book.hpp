@@ -17,12 +17,12 @@ public:
   bool HandleOrder(Order &order);
 
 private:
-  void HandleBuy(std::shared_ptr<Order> order);
-  void HandleSell(std::shared_ptr<Order> order);
+  bool HandleBuy(std::shared_ptr<Order> order);
+  bool HandleSell(std::shared_ptr<Order> order);
   void AddBuy(std::shared_ptr<Order> order);
   void AddSell(std::shared_ptr<Order> order);
-  void ExecuteBuy(std::shared_ptr<Order> order);
-  void ExecuteSell(std::shared_ptr<Order> order);
+  bool ExecuteBuy(std::shared_ptr<Order> order);
+  bool ExecuteSell(std::shared_ptr<Order> order);
 
   AtomicMap<price_t, std::shared_ptr<Price>, std::greater<price_t>> bids;
   AtomicMap<price_t, std::shared_ptr<Price>> asks;

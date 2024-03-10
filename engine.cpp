@@ -53,9 +53,19 @@ void Engine::connection_thread(ClientConnection connection)
 
 			// Remember to take timestamp at the appropriate time, or compute
 			// an appropriate timestamp!
-			auto output_time = getCurrentTimestamp();
-			Output::OrderAdded(input.order_id, input.instrument, input.price, input.count, input.type == input_sell,
-												 output_time);
+			Order order(
+					input.order_id,
+					input.instrument,
+					input.price,
+					input.count,
+					input.type == input_sell ? Side::SELL : Side::BUY,
+					0);
+			std::shared_ptr<OrderBook> ob = GetOrderBook(order.GetInstrumentId());
+			ob->HandleOrder(order);
+
+			// auto output_time = getCurrentTimestamp();
+			// Output::OrderAdded(input.order_id, input.instrument, input.price, input.count, input.type == input_sell,
+			// 									 output_time);
 			break;
 		}
 		}
@@ -64,10 +74,10 @@ void Engine::connection_thread(ClientConnection connection)
 
 		// Remember to take timestamp at the appropriate time, or compute
 		// an appropriate timestamp!
-		intmax_t output_time = getCurrentTimestamp();
+		// intmax_t output_time = getCurrentTimestamp();
 
 		// Check the parameter names in `io.hpp`.
-		Output::OrderExecuted(123, 124, 1, 2000, 10, output_time);
+		// Output::OrderExecuted(123, 124, 1, 2000, 10, output_time);
 	}
 }
 

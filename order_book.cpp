@@ -6,22 +6,33 @@
 bool OrderBook::HandleOrder(Order &order)
 {
   std::shared_ptr<Order> orderPtr = std::make_shared<Order>(order);
+  bool filled;
   switch (order.GetSide())
   {
   case Side::BUY:
-    HandleBuy(orderPtr);
+    filled = HandleBuy(orderPtr);
     break;
   case Side::SELL:
-    HandleSell(orderPtr);
+    filled = HandleSell(orderPtr);
     break;
   default:
     return false;
   }
 
+  if (!filled)
+  {
+    Output::OrderAdded(
+        orderPtr->GetOrderId(),
+        orderPtr->GetInstrumentId().c_str(),
+        orderPtr->GetPrice(),
+        orderPtr->GetCount(),
+        orderPtr->GetSide() == Side::SELL,
+        orderPtr->GetTimestamp());
+  }
   return true;
 }
 
-void OrderBook::HandleBuy(std::shared_ptr<Order> order)
+bool OrderBook::HandleBuy(std::shared_ptr<Order> order)
 {
   assert(order->GetSide() == Side::BUY);
   assert(order->GetActivated() == false);
@@ -36,13 +47,14 @@ void OrderBook::HandleBuy(std::shared_ptr<Order> order)
   l.unlock();
 
   // Execute
-  ExecuteBuy(order);
+  bool res = ExecuteBuy(order);
 
   // Add
   order->Activate();
+  return res;
 }
 
-void OrderBook::HandleSell(std::shared_ptr<Order> order)
+bool OrderBook::HandleSell(std::shared_ptr<Order> order)
 {
   assert(order->GetSide() == Side::SELL);
   assert(order->GetActivated() == false);
@@ -57,10 +69,11 @@ void OrderBook::HandleSell(std::shared_ptr<Order> order)
   l.unlock();
 
   // Execute
-  ExecuteSell(order);
+  bool res = ExecuteSell(order);
 
   // Add
   order->Activate();
+  return res;
 }
 
 void OrderBook::AddBuy(std::shared_ptr<Order> order)
@@ -83,7 +96,7 @@ void OrderBook::AddSell(std::shared_ptr<Order> order)
  * @param order active buy order to execute.
  * @return if buy order has been fully completed.
  */
-void OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
+bool OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
 {
   assert(order->GetSide() == Side::BUY);
   assert(order->GetActivated() == false);
@@ -101,7 +114,7 @@ void OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
     std::shared_ptr<Price> priceQueue = firstEl->second;
     assert(priceQueue->Size() != 0);
     if (price > order->GetPrice())
-      return;
+      return false;
 
     // Iteratively match with all orders in this price queue.
     while (order->GetCount() > 0 && priceQueue->Size())
@@ -146,13 +159,15 @@ void OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
       assert(num == 1);
     }
   }
+
+  return order->GetCount() == 0;
 }
 
 /**
  * @param order active buy order to execute.
  * @return if buy order has been fully completed.
  */
-void OrderBook::ExecuteSell(std::shared_ptr<Order> order)
+bool OrderBook::ExecuteSell(std::shared_ptr<Order> order)
 {
   assert(order->GetSide() == Side::SELL);
   assert(order->GetActivated() == false);
@@ -162,7 +177,7 @@ void OrderBook::ExecuteSell(std::shared_ptr<Order> order)
   {
     // Check if any sell orders
     if (bids.Size() == 0)
-      return;
+      return false;
 
     // Check if lowest sell order can match the buy
     auto firstEl = bids.begin();
@@ -215,6 +230,8 @@ void OrderBook::ExecuteSell(std::shared_ptr<Order> order)
       assert(num == 1);
     }
   }
+
+  return order->GetCount() == 0;
 }
 
 inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept

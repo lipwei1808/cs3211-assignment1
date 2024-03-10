@@ -5,7 +5,10 @@
 #include <mutex>
 #include <condition_variable>
 
+#include "io.hpp"
+
 typedef unsigned int order_id_t;
+typedef unsigned int execution_id_t;
 typedef std::string instrument_id_t;
 typedef unsigned int price_t;
 
@@ -22,6 +25,14 @@ public:
   order_id_t GetOrderId() const
   {
     return order_id;
+  }
+  execution_id_t GetExecutionId() const
+  {
+    return execution_id;
+  }
+  void IncrementExecutionId()
+  {
+    execution_id++;
   }
   instrument_id_t GetInstrumentId() const
   {
@@ -75,6 +86,7 @@ public:
 
 private:
   order_id_t order_id;
+  execution_id_t execution_id;
   instrument_id_t instrument;
   price_t price;
   unsigned int count;
