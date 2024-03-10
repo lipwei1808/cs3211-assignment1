@@ -3,6 +3,7 @@
 
 #include <mutex>
 #include <chrono>
+#include <memory>
 #include <assert.h>
 
 #include "atomic_map.hpp"
@@ -16,21 +17,17 @@ public:
   bool HandleOrder(Order &order);
 
 private:
-  bool HandleBuy(Order &order);
+  bool HandleBuy(std::shared_ptr<Order> order);
 
-  bool HandleSell(Order &order)
+  bool HandleSell(std::shared_ptr<Order> order)
   {
-    assert(order.GetSide() == Side::BUY);
+    assert(order->GetSide() == Side::BUY);
     std::unique_lock<std::mutex> l(order_book_lock);
     return true;
   }
 
-  bool ExecuteBuy(Order &order)
-  {
-    assert(order.GetSide() == Side::BUY);
-    std::unique_lock<std::mutex> l(order_book_lock);
-    return true;
-  }
+  bool ExecuteBuy(std::shared_ptr<Order> order);
+
   bool ExecuteSell(Order &order)
   {
 
@@ -39,7 +36,7 @@ private:
     return true;
   }
 
-  bool AddBuy(Order &order);
+  bool AddBuy(std::shared_ptr<Order> order);
 
   AtomicMap<price_t, std::shared_ptr<Price>, std::greater<price_t>> bids;
   AtomicMap<price_t, std::shared_ptr<Price>> asks;
