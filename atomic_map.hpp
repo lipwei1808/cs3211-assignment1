@@ -4,6 +4,13 @@
 #include <mutex>
 #include <map>
 
+template <typename T>
+struct WrapperValue
+{
+  std::mutex lock;
+  T val;
+};
+
 template <typename K, typename V, typename Comparator = std::less<K>>
 class AtomicMap
 {
@@ -54,7 +61,7 @@ private:
   }
 
   std::mutex mutex;
-  std::map<K, V, Comparator> map;
+  std::map<K, WrapperValue<V>, Comparator> map;
 };
 
 #endif
