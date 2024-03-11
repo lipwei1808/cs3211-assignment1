@@ -14,7 +14,7 @@ class OrderBook
 {
 public:
   OrderBook() = default;
-  bool HandleOrder(Order &order);
+  bool HandleOrder(std::shared_ptr<Order> order);
 
 private:
   bool HandleBuy(std::shared_ptr<Order> order);

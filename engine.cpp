@@ -53,14 +53,13 @@ void Engine::connection_thread(ClientConnection connection)
 
 			// Remember to take timestamp at the appropriate time, or compute
 			// an appropriate timestamp!
-			Order order(
-					input.order_id,
-					input.instrument,
-					input.price,
-					input.count,
-					input.type == input_sell ? Side::SELL : Side::BUY,
-					0);
-			std::shared_ptr<OrderBook> ob = GetOrderBook(order.GetInstrumentId());
+			std::shared_ptr<Order> order = std::make_shared<Order>(input.order_id,
+																														 input.instrument,
+																														 input.price,
+																														 input.count,
+																														 input.type == input_sell ? Side::SELL : Side::BUY,
+																														 0);
+			std::shared_ptr<OrderBook> ob = GetOrderBook(order->GetInstrumentId());
 			ob->HandleOrder(order);
 
 			// auto output_time = getCurrentTimestamp();

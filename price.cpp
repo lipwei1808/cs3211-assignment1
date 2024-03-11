@@ -3,9 +3,9 @@
 #include "price.hpp"
 #include "order.hpp"
 
-Price::Price(unsigned int price) : price(price), orders(std::queue<std::shared_ptr<Order>>()) {}
+Price::Price(unsigned int price) : orders(std::queue<std::shared_ptr<Order>>()), price(price) {}
 
-bool Price::AddOrder(std::shared_ptr<Order> order)
+void Price::AddOrder(std::shared_ptr<Order> order)
 {
   orders.push(order);
 }

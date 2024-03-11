@@ -1,19 +1,27 @@
 #include <assert.h>
+#include <memory>
+#include <mutex>
+#include <iostream>
+#include <string>
 
 #include "order_book.hpp"
 #include "order.hpp"
 
-bool OrderBook::HandleOrder(Order &order)
+inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
 {
-  std::shared_ptr<Order> orderPtr = std::make_shared<Order>(order);
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+bool OrderBook::HandleOrder(std::shared_ptr<Order> order)
+{
   bool filled;
-  switch (order.GetSide())
+  switch (order->GetSide())
   {
   case Side::BUY:
-    filled = HandleBuy(orderPtr);
+    filled = HandleBuy(order);
     break;
   case Side::SELL:
-    filled = HandleSell(orderPtr);
+    filled = HandleSell(order);
     break;
   default:
     return false;
@@ -22,12 +30,12 @@ bool OrderBook::HandleOrder(Order &order)
   if (!filled)
   {
     Output::OrderAdded(
-        orderPtr->GetOrderId(),
-        orderPtr->GetInstrumentId().c_str(),
-        orderPtr->GetPrice(),
-        orderPtr->GetCount(),
-        orderPtr->GetSide() == Side::SELL,
-        orderPtr->GetTimestamp());
+        order->GetOrderId(),
+        order->GetInstrumentId().c_str(),
+        order->GetPrice(),
+        order->GetCount(),
+        order->GetSide() == Side::SELL,
+        order->GetTimestamp());
   }
   return true;
 }
@@ -106,7 +114,7 @@ bool OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
   {
     // Check if any sell orders
     if (asks.Size() == 0)
-      return;
+      return false;
 
     // Check if lowest sell order can match the buy
     auto firstEl = asks.begin();
@@ -185,7 +193,7 @@ bool OrderBook::ExecuteSell(std::shared_ptr<Order> order)
     std::shared_ptr<Price> priceQueue = firstEl->second;
     assert(priceQueue->Size() != 0);
     if (price > order->GetPrice())
-      return;
+      return false;
 
     // Iteratively match with all orders in this price queue.
     while (order->GetCount() > 0 && priceQueue->Size())
@@ -232,9 +240,4 @@ bool OrderBook::ExecuteSell(std::shared_ptr<Order> order)
   }
 
   return order->GetCount() == 0;
-}
-
-inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
-{
-  return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }

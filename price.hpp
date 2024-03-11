@@ -9,7 +9,7 @@ class Price
 {
 public:
   Price(unsigned int price);
-  bool AddOrder(std::shared_ptr<Order> order);
+  void AddOrder(std::shared_ptr<Order> order);
   void Pop();
   std::shared_ptr<Order> Front();
   size_t Size() const;
