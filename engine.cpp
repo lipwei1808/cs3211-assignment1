@@ -1,6 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <memory>
+#include <mutex>
 
 #include "io.hpp"
 #include "order_book.hpp"
@@ -82,5 +83,12 @@ void Engine::connection_thread(ClientConnection connection)
 
 std::shared_ptr<OrderBook> Engine::GetOrderBook(instrument_id_t instrument)
 {
-	return instruments.Get(instrument);
+	WrapperValue<std::shared_ptr<OrderBook>> w = instruments.Get(instrument);
+	std::unique_lock<std::mutex> l(wrapper.lock);
+	if (!w.initialised) {
+		w.initialised = true;
+		w.val = std::make_shared<OrderBook>();
+	}
+
+	return w.val;
 }
