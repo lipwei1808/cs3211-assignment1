@@ -13,27 +13,6 @@
 #include "order_book.hpp"
 #include "order.hpp"
 
-template <typename T>
-struct WrapperValue
-{
-  std::mutex lock;
-  bool initialised;
-  T val;
-  WrapperValue() = default;
-  WrapperValue(const WrapperValue &v) : initialised(v.initialised), val(v.val) {}
-  WrapperValue &operator=(const WrapperValue &v)
-  {
-    this->initialised = v.initialised;
-    this->val = v.val;
-    return *this;
-  }
-  T &Get()
-  {
-    std::unique_lock<std::mutex> l(lock);
-    return val;
-  }
-};
-
 struct Engine
 {
 public:

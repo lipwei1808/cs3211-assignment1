@@ -8,16 +8,14 @@
 class Price
 {
 public:
-  Price(unsigned int price);
+  Price();
   void AddOrder(std::shared_ptr<Order> order);
   void Pop();
   std::shared_ptr<Order> Front();
   size_t Size() const;
-  unsigned int GetPrice() const;
 
 private:
   std::queue<std::shared_ptr<Order>> orders;
-  unsigned int price;
   std::mutex lock;
 };
 
