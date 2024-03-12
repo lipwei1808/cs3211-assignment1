@@ -3,7 +3,7 @@
 #include "price.hpp"
 #include "order.hpp"
 
-Price::Price(unsigned int price) : orders(std::queue<std::shared_ptr<Order>>()), price(price) {}
+Price::Price() : orders(std::queue<std::shared_ptr<Order>>()) {}
 
 void Price::AddOrder(std::shared_ptr<Order> order)
 {
@@ -32,9 +32,4 @@ void Price::Pop()
 size_t Price::Size() const
 {
   return orders.size();
-}
-
-unsigned int Price::GetPrice() const
-{
-  return price;
 }

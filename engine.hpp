@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <memory>
+#include <mutex>
 
 #include "io.hpp"
 #include "atomic_map.hpp"
@@ -15,18 +16,18 @@
 struct Engine
 {
 public:
-	Engine();
-	void accept(ClientConnection conn);
-	std::shared_ptr<OrderBook> GetOrderBook(instrument_id_t instrument);
+  Engine();
+  void accept(ClientConnection conn);
+  std::shared_ptr<OrderBook> GetOrderBook(instrument_id_t instrument);
 
 private:
-	void connection_thread(ClientConnection conn);
-	AtomicMap<instrument_id_t, std::shared_ptr<OrderBook>> instruments;
+  void connection_thread(ClientConnection conn);
+  AtomicMap<instrument_id_t, WrapperValue<std::shared_ptr<OrderBook>>> instruments;
 };
 
 inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
 {
-	return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
 #endif

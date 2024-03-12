@@ -88,7 +88,7 @@ void OrderBook::AddBuy(std::shared_ptr<Order> order)
 {
   assert(order->GetSide() == Side::BUY);
   std::unique_lock<std::mutex> l(bids_lock);
-  std::shared_ptr<Price> p = bids.Get(order->GetPrice());
+  std::shared_ptr<Price> p = GetPrice(bids, order->GetPrice());
   p->AddOrder(order);
 }
 
@@ -96,7 +96,7 @@ void OrderBook::AddSell(std::shared_ptr<Order> order)
 {
   assert(order->GetSide() == Side::SELL);
   std::unique_lock<std::mutex> l(asks_lock);
-  std::shared_ptr<Price> p = asks.Get(order->GetPrice());
+  std::shared_ptr<Price> p = GetPrice(asks, order->GetPrice());
   p->AddOrder(order);
 }
 
@@ -119,7 +119,8 @@ bool OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
     // Check if lowest sell order can match the buy
     auto firstEl = asks.begin();
     price_t price = firstEl->first;
-    std::shared_ptr<Price> priceQueue = firstEl->second;
+    assert(firstEl->second.initialised);
+    std::shared_ptr<Price> priceQueue = firstEl->second.Get();
     assert(priceQueue->Size() != 0);
     if (price > order->GetPrice())
       return false;
@@ -190,7 +191,8 @@ bool OrderBook::ExecuteSell(std::shared_ptr<Order> order)
     // Check if lowest sell order can match the buy
     auto firstEl = bids.begin();
     price_t price = firstEl->first;
-    std::shared_ptr<Price> priceQueue = firstEl->second;
+    assert(firstEl->second.initialised);
+    std::shared_ptr<Price> priceQueue = firstEl->second.Get();
     assert(priceQueue->Size() != 0);
     if (price > order->GetPrice())
       return false;
