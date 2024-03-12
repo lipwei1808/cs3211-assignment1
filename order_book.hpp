@@ -17,8 +17,8 @@ public:
   bool HandleOrder(std::shared_ptr<Order> order);
 
 private:
-  bool HandleBuy(std::shared_ptr<Order> order);
-  bool HandleSell(std::shared_ptr<Order> order);
+  void HandleBuy(std::shared_ptr<Order> order);
+  void HandleSell(std::shared_ptr<Order> order);
   void AddBuy(std::shared_ptr<Order> order);
   void AddSell(std::shared_ptr<Order> order);
   bool ExecuteBuy(std::shared_ptr<Order> order);
