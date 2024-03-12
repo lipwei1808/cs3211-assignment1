@@ -13,7 +13,7 @@ bool test()
   ob.asks.Get(5);
   for (auto [k, v] : ob.asks.map)
   {
-    std::cout << "[" << k << ", " << v << "]\n";
+    std::cout << "[" << k << ", " << v.Get() << "]\n";
   }
   return true;
 }

@@ -8,7 +8,15 @@ template <typename T>
 struct WrapperValue
 {
   std::mutex lock;
+  bool initialised;
   T val;
+  WrapperValue() = default;
+  WrapperValue(const WrapperValue &v) : initialised(v.initialised), val(v.val) {}
+  T &Get()
+  {
+    std::unique_lock<std::mutex> l(lock);
+    return val;
+  }
 };
 
 template <typename K, typename V, typename Comparator = std::less<K>>
@@ -18,7 +26,7 @@ public:
   AtomicMap() = default;
   AtomicMap(const Comparator &comp) : map(comp) {}
 
-  V &Get(K key)
+  WrapperValue<V> &Get(K key)
   {
     if (map.find(key) != map.end())
     {
@@ -33,12 +41,12 @@ public:
     return map.size();
   }
 
-  std::map<K, V, Comparator>::iterator begin()
+  std::map<K, WrapperValue<V>, Comparator>::iterator begin()
   {
     return map.begin();
   }
 
-  std::map<K, V, Comparator>::iterator end()
+  std::map<K, WrapperValue<V>, Comparator>::iterator end()
   {
     return map.end();
   }
@@ -49,12 +57,13 @@ public:
   }
 
 private:
-  V &Create(K key)
+  WrapperValue<V> &Create(K key)
   {
     std::unique_lock<std::mutex> lock(mutex);
     if (map.find(key) == map.end())
     {
-      map[key] = V();
+      WrapperValue<V> v;
+      map.emplace(key, v);
     }
 
     return map[key];
