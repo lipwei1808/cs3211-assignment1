@@ -83,7 +83,7 @@ void Engine::connection_thread(ClientConnection connection)
 
 std::shared_ptr<OrderBook> Engine::GetOrderBook(instrument_id_t instrument)
 {
-	WrapperValue<std::shared_ptr<OrderBook>> w = instruments.Get(instrument);
+	WrapperValue<std::shared_ptr<OrderBook>> &w = instruments.Get(instrument);
 	std::unique_lock<std::mutex> l(w.lock);
 	if (!w.initialised)
 	{

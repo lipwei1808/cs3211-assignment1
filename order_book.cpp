@@ -129,7 +129,6 @@ bool OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
     assert(firstEl->second.initialised);
     std::shared_ptr<Price> priceQueue = firstEl->second.Get();
     assert(priceQueue->Size() != 0);
-    std::cout << "Price: " << price << std::endl;
     if (price > order->GetPrice())
       return false;
 
@@ -137,7 +136,6 @@ bool OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
     while (order->GetCount() > 0 && priceQueue->Size())
     {
       std::shared_ptr<Order> sellOrder = priceQueue->Front();
-      std::cout << "Order: " << sellOrder->GetOrderId() << std::endl;
       // Check if first order's timestamp comes before the current buy
       if (sellOrder->GetTimestamp() > order->GetTimestamp())
         break;
@@ -153,28 +151,11 @@ bool OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
         continue;
       }
       sellOrder->IncrementExecutionId();
-      if (sellOrder->GetCount() == order->GetCount())
+      MatchOrders(order, sellOrder);
+      if (sellOrder->GetCount() == 0)
       {
         priceQueue->Pop();
-        order->Fill();
       }
-      else if (sellOrder->GetCount() > order->GetCount())
-      {
-        sellOrder->Fill(order->GetCount());
-        order->Fill();
-      }
-      else
-      {
-        order->Fill(sellOrder->GetCount());
-        priceQueue->Pop();
-      }
-      Output::OrderExecuted(
-          order->GetOrderId(),
-          sellOrder->GetOrderId(),
-          sellOrder->GetExecutionId(),
-          sellOrder->GetPrice(),
-          std::min(sellOrder->GetCount(), order->GetCount()),
-          getCurrentTimestamp());
     }
 
     if (priceQueue->Size() == 0)
@@ -232,37 +213,47 @@ bool OrderBook::ExecuteSell(std::shared_ptr<Order> order)
         continue;
       }
 
-      if (oppOrder->GetCount() == order->GetCount())
+      oppOrder->IncrementExecutionId();
+      MatchOrders(order, oppOrder);
+      if (oppOrder->GetCount() == 0)
       {
         priceQueue->Pop();
-        order->Fill();
       }
-      else if (oppOrder->GetCount() > order->GetCount())
-      {
-        oppOrder->Fill(order->GetCount());
-        order->Fill();
-      }
-      else
-      {
-        order->Fill(oppOrder->GetCount());
-        priceQueue->Pop();
-      }
-      Output::OrderExecuted(
-          order->GetOrderId(),
-          oppOrder->GetOrderId(),
-          oppOrder->GetExecutionId(),
-          oppOrder->GetPrice(),
-          std::min(oppOrder->GetCount(), order->GetCount()),
-          getCurrentTimestamp());
-    }
 
-    if (priceQueue->Size() == 0)
-    {
-      // Remove from map of prices
-      size_t num = bids.Erase(firstEl->first);
-      assert(num == 1);
+      if (priceQueue->Size() == 0)
+      {
+        // Remove from map of prices
+        size_t num = bids.Erase(firstEl->first);
+        assert(num == 1);
+      }
     }
   }
-
   return order->GetCount() == 0;
+}
+
+void OrderBook::MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Order> resting)
+{
+  unsigned int qty = std::min(incoming->GetCount(), resting->GetCount());
+  if (resting->GetCount() == incoming->GetCount())
+  {
+    incoming->Fill();
+    resting->Fill();
+  }
+  else if (resting->GetCount() > incoming->GetCount())
+  {
+    resting->Fill(incoming->GetCount());
+    incoming->Fill();
+  }
+  else
+  {
+    incoming->Fill(resting->GetCount());
+    resting->Fill();
+  }
+  Output::OrderExecuted(
+      resting->GetOrderId(),
+      incoming->GetOrderId(),
+      resting->GetExecutionId(),
+      resting->GetPrice(),
+      qty,
+      getCurrentTimestamp());
 }

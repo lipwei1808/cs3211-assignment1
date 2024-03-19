@@ -23,10 +23,11 @@ private:
   void AddSell(std::shared_ptr<Order> order);
   bool ExecuteBuy(std::shared_ptr<Order> order);
   bool ExecuteSell(std::shared_ptr<Order> order);
+  void MatchOrders(std::shared_ptr<Order> o1, std::shared_ptr<Order> o2);
   template <typename T>
-  std::shared_ptr<Price> GetPrice(AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>, T> map, price_t price)
+  std::shared_ptr<Price> GetPrice(AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>, T> &map, price_t price)
   {
-    WrapperValue<std::shared_ptr<Price>> w = map.Get(price);
+    WrapperValue<std::shared_ptr<Price>> &w = map.Get(price);
     std::unique_lock<std::mutex> l(w.lock);
     if (!w.initialised)
     {
