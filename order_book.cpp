@@ -116,7 +116,6 @@ bool OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
   assert(order->GetSide() == Side::BUY);
   assert(order->GetActivated() == false);
   std::unique_lock<std::mutex> l(asks_lock);
-  std::cout << "[ExecuteBuy] Order count: " << order->GetCount() << ", Asks map size: " << asks.Size() << std::endl;
   while (order->GetCount() > 0)
   {
     // Check if any sell orders
@@ -191,7 +190,7 @@ bool OrderBook::ExecuteSell(std::shared_ptr<Order> order)
     assert(firstEl->second.initialised);
     std::shared_ptr<Price> priceQueue = firstEl->second.Get();
     assert(priceQueue->Size() != 0);
-    if (price > order->GetPrice())
+    if (price < order->GetPrice())
       return false;
 
     // Iteratively match with all orders in this price queue.
