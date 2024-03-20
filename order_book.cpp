@@ -8,6 +8,45 @@
 #include "order_book.hpp"
 #include "order.hpp"
 
+template void OrderBook::Handle<Side::BUY>(std::shared_ptr<Order> order);
+template void OrderBook::Handle<Side::SELL>(std::shared_ptr<Order> order);
+
+template <Side side>
+void OrderBook::Handle(std::shared_ptr<Order> order)
+{
+  assert(side == Side::SELL || side == Side::BUY);
+  assert(order->GetSide() == side);
+  assert(order->GetActivated() == false);
+  std::unique_lock<std::mutex> l(order_book_lock);
+
+  // Get timestamp for order
+  order->SetTimestamp(getCurrentTimestamp());
+
+  // Insert dummy node into order
+  if constexpr (side == Side::BUY)
+    AddBuy(order);
+  else
+    AddSell(order);
+
+  l.unlock();
+
+  // Execute
+  bool filled = side == Side::BUY ? ExecuteBuy(order) : ExecuteSell(order);
+  if (!filled)
+  {
+    Output::OrderAdded(
+        order->GetOrderId(),
+        order->GetInstrumentId().c_str(),
+        order->GetPrice(),
+        order->GetCount(),
+        side == Side::SELL,
+        order->GetTimestamp());
+  }
+
+  // Add
+  order->Activate();
+}
+
 void OrderBook::AddBuy(std::shared_ptr<Order> order)
 {
   assert(order->GetSide() == Side::BUY);
