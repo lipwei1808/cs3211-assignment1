@@ -7,9 +7,14 @@
 
 #include "order_book.hpp"
 #include "order.hpp"
+#include "price.hpp"
 
 template void OrderBook::Handle<Side::BUY>(std::shared_ptr<Order> order);
 template void OrderBook::Handle<Side::SELL>(std::shared_ptr<Order> order);
+template void OrderBook::Add<Side::SELL>(std::shared_ptr<Order> order);
+template void OrderBook::Add<Side::BUY>(std::shared_ptr<Order> order);
+template std::shared_ptr<Price> OrderBook::GetPrice<Side::SELL>(price_t price);
+template std::shared_ptr<Price> OrderBook::GetPrice<Side::BUY>(price_t price);
 
 template <Side side>
 void OrderBook::Handle(std::shared_ptr<Order> order)
@@ -45,6 +50,18 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
 
   // Add
   order->Activate();
+}
+
+template <Side side>
+void OrderBook::Add(std::shared_ptr<Order> order)
+{
+  assert(order->GetSide() == side);
+  if constexpr (side == Side::BUY)
+    std::unique_lock<std::mutex> l(bids_lock);
+  else
+    std::unique_lock<std::mutex> l(asks_lock);
+  std::shared_ptr<Price> p = GetPrice<side>(order->GetPrice());
+  p->AddOrder(order);
 }
 
 /**
@@ -195,4 +212,24 @@ void OrderBook::MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Ord
       resting->GetPrice(),
       qty,
       getCurrentTimestamp());
+}
+
+template <Side side>
+std::shared_ptr<Price> OrderBook::GetPrice(price_t price)
+{
+  WrapperValue<std::shared_ptr<Price>> &w = ([&]()
+                                             {
+      if constexpr (side == Side::BUY)
+        return std::ref(bids.Get(price));
+      else
+        return std::ref(asks.Get(price)); })();
+
+  std::unique_lock<std::mutex>
+      l(w.lock);
+  if (!w.initialised)
+  {
+    w.initialised = true;
+    w.val = std::make_shared<Price>();
+  }
+  return w.val;
 }
