@@ -10,15 +10,53 @@
 #include "order.hpp"
 #include "price.hpp"
 
+inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
+{
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
 class OrderBook
 {
 public:
   OrderBook() = default;
   bool HandleOrder(std::shared_ptr<Order> order);
+  template <Side side>
+  void Handle(std::shared_ptr<Order> order)
+  {
+    assert(side == Side::SELL || side == Side::BUY);
+    assert(order->GetSide() == side);
+    assert(order->GetActivated() == false);
+    std::unique_lock<std::mutex> l(order_book_lock);
+
+    // Get timestamp for order
+    order->SetTimestamp(getCurrentTimestamp());
+
+    // Insert dummy node into order
+    if constexpr (side == Side::BUY)
+      AddBuy(order);
+    else
+      AddSell(order);
+
+    l.unlock();
+
+    // Execute
+    bool filled = side == Side::BUY ? ExecuteBuy(order) : ExecuteSell(order);
+    if (!filled)
+    {
+      Output::OrderAdded(
+          order->GetOrderId(),
+          order->GetInstrumentId().c_str(),
+          order->GetPrice(),
+          order->GetCount(),
+          side == Side::SELL,
+          order->GetTimestamp());
+    }
+
+    // Add
+    order->Activate();
+  }
 
 private:
-  void HandleBuy(std::shared_ptr<Order> order);
-  void HandleSell(std::shared_ptr<Order> order);
   void AddBuy(std::shared_ptr<Order> order);
   void AddSell(std::shared_ptr<Order> order);
   bool ExecuteBuy(std::shared_ptr<Order> order);

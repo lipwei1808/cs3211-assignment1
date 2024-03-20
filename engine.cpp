@@ -61,7 +61,10 @@ void Engine::connection_thread(ClientConnection connection)
 																														 input.type == input_sell ? Side::SELL : Side::BUY,
 																														 0);
 			std::shared_ptr<OrderBook> ob = GetOrderBook(order->GetInstrumentId());
-			ob->HandleOrder(order);
+			if (order->GetSide() == Side::BUY)
+				ob->Handle<Side::BUY>(order);
+			else
+				ob->Handle<Side::SELL>(order);
 
 			// auto output_time = getCurrentTimestamp();
 			// Output::OrderAdded(input.order_id, input.instrument, input.price, input.count, input.type == input_sell,
