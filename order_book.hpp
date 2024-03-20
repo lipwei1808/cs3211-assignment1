@@ -31,7 +31,7 @@ private:
   {
     assert(order->GetSide() == Side::BUY);
     std::unique_lock<std::mutex> l(bids_lock);
-    std::shared_ptr<Price> p = GetPrice(bids, order->GetPrice());
+    std::shared_ptr<Price> p = GetPrice<Side::BUY>(order->GetPrice());
     p->AddOrder(order);
   }
 
@@ -40,20 +40,25 @@ private:
   {
     assert(order->GetSide() == Side::SELL);
     std::unique_lock<std::mutex> l(asks_lock);
-    std::shared_ptr<Price> p = GetPrice(asks, order->GetPrice());
+    std::shared_ptr<Price> p = GetPrice<Side::SELL>(order->GetPrice());
     p->AddOrder(order);
   }
 
-  void AddBuy(std::shared_ptr<Order> order);
-  void AddSell(std::shared_ptr<Order> order);
   bool ExecuteBuy(std::shared_ptr<Order> order);
   bool ExecuteSell(std::shared_ptr<Order> order);
   void MatchOrders(std::shared_ptr<Order> o1, std::shared_ptr<Order> o2);
-  template <typename T>
-  std::shared_ptr<Price> GetPrice(AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>, T> &map, price_t price)
+  template <Side side>
+  std::shared_ptr<Price> GetPrice(price_t price)
   {
-    WrapperValue<std::shared_ptr<Price>> &w = map.Get(price);
-    std::unique_lock<std::mutex> l(w.lock);
+    WrapperValue<std::shared_ptr<Price>> &w = ([&]()
+                                               {
+      if constexpr (side == Side::BUY)
+        return std::ref(bids.Get(price));
+      else
+        return std::ref(asks.Get(price)); })();
+
+    std::unique_lock<std::mutex>
+        l(w.lock);
     if (!w.initialised)
     {
       w.initialised = true;
