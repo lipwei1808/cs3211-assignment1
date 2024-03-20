@@ -23,6 +23,27 @@ public:
   void Handle(std::shared_ptr<Order> order);
 
 private:
+  template <Side side>
+  void Add(std::shared_ptr<Order> order);
+
+  template <>
+  void Add<Side::BUY>(std::shared_ptr<Order> order)
+  {
+    assert(order->GetSide() == Side::BUY);
+    std::unique_lock<std::mutex> l(bids_lock);
+    std::shared_ptr<Price> p = GetPrice(bids, order->GetPrice());
+    p->AddOrder(order);
+  }
+
+  template <>
+  void Add<Side::SELL>(std::shared_ptr<Order> order)
+  {
+    assert(order->GetSide() == Side::SELL);
+    std::unique_lock<std::mutex> l(asks_lock);
+    std::shared_ptr<Price> p = GetPrice(asks, order->GetPrice());
+    p->AddOrder(order);
+  }
+
   void AddBuy(std::shared_ptr<Order> order);
   void AddSell(std::shared_ptr<Order> order);
   bool ExecuteBuy(std::shared_ptr<Order> order);

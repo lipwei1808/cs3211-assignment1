@@ -24,9 +24,9 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
 
   // Insert dummy node into order
   if constexpr (side == Side::BUY)
-    AddBuy(order);
+    Add<Side::BUY>(order);
   else
-    AddSell(order);
+    Add<Side::SELL>(order);
 
   l.unlock();
 
@@ -45,22 +45,6 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
 
   // Add
   order->Activate();
-}
-
-void OrderBook::AddBuy(std::shared_ptr<Order> order)
-{
-  assert(order->GetSide() == Side::BUY);
-  std::unique_lock<std::mutex> l(bids_lock);
-  std::shared_ptr<Price> p = GetPrice(bids, order->GetPrice());
-  p->AddOrder(order);
-}
-
-void OrderBook::AddSell(std::shared_ptr<Order> order)
-{
-  assert(order->GetSide() == Side::SELL);
-  std::unique_lock<std::mutex> l(asks_lock);
-  std::shared_ptr<Price> p = GetPrice(asks, order->GetPrice());
-  p->AddOrder(order);
 }
 
 /**
