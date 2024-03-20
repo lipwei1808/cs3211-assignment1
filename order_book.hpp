@@ -15,6 +15,7 @@ inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
   return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
+// TODO: Check if bids_lock/asks_lock required when using AtomicMap
 class OrderBook
 {
 public:
@@ -25,12 +26,11 @@ public:
 private:
   template <Side side>
   void Add(std::shared_ptr<Order> order);
-
-  bool ExecuteBuy(std::shared_ptr<Order> order);
-  bool ExecuteSell(std::shared_ptr<Order> order);
-  void MatchOrders(std::shared_ptr<Order> o1, std::shared_ptr<Order> o2);
   template <Side side>
   std::shared_ptr<Price> GetPrice(price_t price);
+  template <Side side>
+  bool Execute(std::shared_ptr<Order> order);
+  void MatchOrders(std::shared_ptr<Order> o1, std::shared_ptr<Order> o2);
 
   AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>, std::greater<price_t>> bids;
   AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>> asks;

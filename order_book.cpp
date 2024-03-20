@@ -13,6 +13,8 @@ template void OrderBook::Handle<Side::BUY>(std::shared_ptr<Order> order);
 template void OrderBook::Handle<Side::SELL>(std::shared_ptr<Order> order);
 template void OrderBook::Add<Side::SELL>(std::shared_ptr<Order> order);
 template void OrderBook::Add<Side::BUY>(std::shared_ptr<Order> order);
+template bool OrderBook::Execute<Side::SELL>(std::shared_ptr<Order> order);
+template bool OrderBook::Execute<Side::BUY>(std::shared_ptr<Order> order);
 template std::shared_ptr<Price> OrderBook::GetPrice<Side::SELL>(price_t price);
 template std::shared_ptr<Price> OrderBook::GetPrice<Side::BUY>(price_t price);
 
@@ -36,7 +38,7 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
   l.unlock();
 
   // Execute
-  bool filled = side == Side::BUY ? ExecuteBuy(order) : ExecuteSell(order);
+  bool filled = Execute<side>(order);
   if (!filled)
   {
     Output::OrderAdded(
@@ -68,87 +70,54 @@ void OrderBook::Add(std::shared_ptr<Order> order)
  * @param order active buy order to execute.
  * @return if buy order has been fully completed.
  */
-bool OrderBook::ExecuteBuy(std::shared_ptr<Order> order)
+template <Side side>
+bool OrderBook::Execute(std::shared_ptr<Order> order)
 {
-  assert(order->GetSide() == Side::BUY);
+  assert(side == Side::SELL || side == Side::BUY);
+  assert(order->GetSide() == side);
   assert(order->GetActivated() == false);
-  std::unique_lock<std::mutex> l(asks_lock);
-  while (order->GetCount() > 0)
-  {
-    // Check if any sell orders
-    if (asks.Size() == 0)
-      return false;
-
-    // Check if lowest sell order can match the buy
-    auto firstEl = asks.begin();
-    price_t price = firstEl->first;
-    assert(firstEl->second.initialised);
-    std::shared_ptr<Price> priceQueue = firstEl->second.Get();
-    assert(priceQueue->Size() != 0);
-    if (price > order->GetPrice())
-      return false;
-
-    // Iteratively match with all orders in this price queue.
-    while (order->GetCount() > 0 && priceQueue->Size())
-    {
-      std::shared_ptr<Order> sellOrder = priceQueue->Front();
-      // Check if first order's timestamp comes before the current buy
-      if (sellOrder->GetTimestamp() > order->GetTimestamp())
-        break;
-
-      // Check if sell order is activated
-      while (!sellOrder->GetActivated())
-        sellOrder->cv.wait(l);
-
-      // Check if dummy order has already been filled
-      if (sellOrder->GetCount() == 0)
-      {
-        priceQueue->Pop();
-        continue;
-      }
-      sellOrder->IncrementExecutionId();
-      MatchOrders(order, sellOrder);
-      if (sellOrder->GetCount() == 0)
-      {
-        priceQueue->Pop();
-      }
-    }
-
-    if (priceQueue->Size() == 0)
-    {
-      // Remove from map of prices
-      size_t num = asks.Erase(firstEl->first);
-      assert(num == 1);
-    }
-  }
-
-  return order->GetCount() == 0;
-}
-
-/**
- * @param order active buy order to execute.
- * @return if buy order has been fully completed.
- */
-bool OrderBook::ExecuteSell(std::shared_ptr<Order> order)
-{
-  assert(order->GetSide() == Side::SELL);
-  assert(order->GetActivated() == false);
-  std::unique_lock<std::mutex> l(bids_lock);
+  std::unique_lock<std::mutex> l;
+  if constexpr (side == Side::BUY)
+    l = std::unique_lock<std::mutex>(asks_lock);
+  else
+    l = std::unique_lock<std::mutex>(bids_lock);
 
   while (order->GetCount() > 0)
   {
     // Check if any sell orders
-    if (bids.Size() == 0)
-      return false;
+    if constexpr (side == Side::BUY)
+    {
+      if (asks.Size() == 0)
+        return false;
+    }
+    else
+    {
+      if (bids.Size() == 0)
+        return false;
+    }
 
     // Check if lowest sell order can match the buy
-    auto firstEl = bids.begin();
+    auto firstEl = ([&]()
+                    {
+        if constexpr (side == Side::BUY) 
+          return asks.begin();
+        else 
+          return bids.begin(); })();
     price_t price = firstEl->first;
     assert(firstEl->second.initialised);
     std::shared_ptr<Price> priceQueue = firstEl->second.Get();
     assert(priceQueue->Size() != 0);
-    if (price < order->GetPrice())
-      return false;
+
+    if constexpr (side == Side::BUY)
+    {
+      if (price > order->GetPrice())
+        return false;
+    }
+    else
+    {
+      if (price < order->GetPrice())
+        return false;
+    }
 
     // Iteratively match with all orders in this price queue.
     while (order->GetCount() > 0 && priceQueue->Size())
@@ -168,20 +137,24 @@ bool OrderBook::ExecuteSell(std::shared_ptr<Order> order)
         priceQueue->Pop();
         continue;
       }
-
       oppOrder->IncrementExecutionId();
       MatchOrders(order, oppOrder);
       if (oppOrder->GetCount() == 0)
       {
         priceQueue->Pop();
       }
+    }
 
-      if (priceQueue->Size() == 0)
-      {
-        // Remove from map of prices
-        size_t num = bids.Erase(firstEl->first);
-        assert(num == 1);
-      }
+    if (priceQueue->Size() == 0)
+    {
+      // Remove from map of prices
+      size_t num = ([&]() -> size_t
+                    {
+          if constexpr (side == Side::BUY) 
+            return asks.Erase(firstEl->first);
+          else 
+            return bids.Erase(firstEl->first); })();
+      assert(num == 1);
     }
   }
   return order->GetCount() == 0;
@@ -224,8 +197,7 @@ std::shared_ptr<Price> OrderBook::GetPrice(price_t price)
       else
         return std::ref(asks.Get(price)); })();
 
-  std::unique_lock<std::mutex>
-      l(w.lock);
+  std::unique_lock<std::mutex> l(w.lock);
   if (!w.initialised)
   {
     w.initialised = true;
