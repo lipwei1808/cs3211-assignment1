@@ -1,48 +1,54 @@
 #ifndef ORDER_BOOK_HPP
 #define ORDER_BOOK_HPP
 
-#include <mutex>
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include <assert.h>
 
 #include "atomic_map.hpp"
 #include "order.hpp"
 #include "price.hpp"
 
+inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
+{
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+// TODO: Check if bids_lock/asks_lock required when using AtomicMap
 class OrderBook
 {
 public:
-  OrderBook() = default;
-  bool HandleOrder(std::shared_ptr<Order> order);
+    OrderBook() = default;
+    template <Side side>
+    void Handle(std::shared_ptr<Order> order);
+    template <Side side>
+    void Cancel(std::shared_ptr<Order> order)
+    {
+        assert(order->GetSide() == side);
+        if constexpr (side == Side::BUY)
+            l = std::unique_lock<std::mutex>(bids_lock);
+        else
+            l = std::unique_lock<std::mutex>(asks_lock);
+
+        std::shared_ptr<Price> priceLevel = GetPrice(order->GetPrice());
+    }
 
 private:
-  void HandleBuy(std::shared_ptr<Order> order);
-  void HandleSell(std::shared_ptr<Order> order);
-  void AddBuy(std::shared_ptr<Order> order);
-  void AddSell(std::shared_ptr<Order> order);
-  bool ExecuteBuy(std::shared_ptr<Order> order);
-  bool ExecuteSell(std::shared_ptr<Order> order);
-  void MatchOrders(std::shared_ptr<Order> o1, std::shared_ptr<Order> o2);
-  template <typename T>
-  std::shared_ptr<Price> GetPrice(AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>, T> &map, price_t price)
-  {
-    WrapperValue<std::shared_ptr<Price>> &w = map.Get(price);
-    std::unique_lock<std::mutex> l(w.lock);
-    if (!w.initialised)
-    {
-      w.initialised = true;
-      w.val = std::make_shared<Price>();
-    }
-    return w.val;
-  }
+    template <Side side>
+    void Add(std::shared_ptr<Order> order);
+    template <Side side>
+    std::shared_ptr<Price> GetPrice(price_t price);
+    template <Side side>
+    bool Execute(std::shared_ptr<Order> order);
+    void MatchOrders(std::shared_ptr<Order> o1, std::shared_ptr<Order> o2);
 
-  AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>, std::greater<price_t>> bids;
-  AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>> asks;
+    AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>, std::greater<price_t>> bids;
+    AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>> asks;
 
-  std::mutex order_book_lock;
-  std::mutex bids_lock;
-  std::mutex asks_lock;
+    std::mutex order_book_lock;
+    std::mutex bids_lock;
+    std::mutex asks_lock;
 };
 
 #endif
