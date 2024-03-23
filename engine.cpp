@@ -55,8 +55,6 @@ void Engine::connection_thread(ClientConnection connection)
                     ob->Cancel<Side::BUY>(order);
                 else
                     ob->Cancel<Side::SELL>(order);
-                auto output_time = getCurrentTimestamp();
-                Output::OrderDeleted(input.order_id, true, output_time);
                 break;
             }
 

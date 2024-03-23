@@ -7,7 +7,6 @@
 
 #include "order.hpp"
 #include "order_book.hpp"
-#include "price.hpp"
 
 template void OrderBook::Handle<Side::BUY>(std::shared_ptr<Order> order);
 template void OrderBook::Handle<Side::SELL>(std::shared_ptr<Order> order);
@@ -63,7 +62,7 @@ void OrderBook::Add(std::shared_ptr<Order> order)
     else
         std::unique_lock<std::mutex> l(asks_lock);
     std::shared_ptr<Price> p = GetPrice<side>(order->GetPrice());
-    p->AddOrder(order);
+    p->push_back(order);
 }
 
 /**
@@ -106,7 +105,7 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
         price_t price = firstEl->first;
         assert(firstEl->second.initialised);
         std::shared_ptr<Price> priceQueue = firstEl->second.Get();
-        assert(priceQueue->Size() != 0);
+        assert(priceQueue->size() != 0);
 
         if constexpr (side == Side::BUY)
         {
@@ -120,9 +119,9 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
         }
 
         // Iteratively match with all orders in this price queue.
-        while (order->GetCount() > 0 && priceQueue->Size())
+        while (order->GetCount() > 0 && priceQueue->size())
         {
-            std::shared_ptr<Order> oppOrder = priceQueue->Front();
+            std::shared_ptr<Order> oppOrder = priceQueue->front();
             // Check if first order's timestamp comes before the current buy
             if (oppOrder->GetTimestamp() > order->GetTimestamp())
                 break;
@@ -134,16 +133,16 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
             // Check if dummy order has already been filled
             if (oppOrder->GetCount() == 0)
             {
-                priceQueue->Pop();
+                priceQueue->pop_front();
                 continue;
             }
             oppOrder->IncrementExecutionId();
             MatchOrders(order, oppOrder);
             if (oppOrder->GetCount() == 0)
-                priceQueue->Pop();
+                priceQueue->pop_front();
         }
 
-        if (priceQueue->Size() == 0)
+        if (priceQueue->size() == 0)
         {
             // Remove from map of prices
             size_t num = ([&]() -> size_t

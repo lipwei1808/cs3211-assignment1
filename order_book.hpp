@@ -2,18 +2,20 @@
 #define ORDER_BOOK_HPP
 
 #include <chrono>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <assert.h>
 
 #include "atomic_map.hpp"
 #include "order.hpp"
-#include "price.hpp"
 
 inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
 {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
+
+typedef std::deque<std::shared_ptr<Order>> Price;
 
 // TODO: Check if bids_lock/asks_lock required when using AtomicMap
 class OrderBook
@@ -26,12 +28,19 @@ public:
     void Cancel(std::shared_ptr<Order> order)
     {
         assert(order->GetSide() == side);
+        std::unique_lock<std::mutex> l;
         if constexpr (side == Side::BUY)
             l = std::unique_lock<std::mutex>(bids_lock);
         else
             l = std::unique_lock<std::mutex>(asks_lock);
 
-        std::shared_ptr<Price> priceLevel = GetPrice(order->GetPrice());
+        std::shared_ptr<Price> priceLevel = GetPrice<side>(order->GetPrice());
+        for (auto start = priceLevel->begin(); start != priceLevel->end(); start++)
+            if (order->GetOrderId() == (*start)->GetOrderId())
+                priceLevel->erase(start);
+
+
+        Output::OrderDeleted(order->GetOrderId(), true, getCurrentTimestamp());
     }
 
 private:
