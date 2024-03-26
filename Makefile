@@ -8,10 +8,10 @@ CXXFLAGS := $(CXX_TEST_FLAGS) -Werror
 BUILDDIR = build
 BUILD_TEST_DIR = build/unit_tests
 
-SRCS = main.cpp engine.cpp io.cpp order.cpp price.cpp order_book.cpp
+SRCS = main.cpp engine.cpp io.cpp order.cpp order_book.cpp
 TEST_SRCS = atomic_map_test.cpp order_book_test.cpp
 
-all: engine client test
+all: engine client test mygrader
 
 engine: $(SRCS:%=$(BUILDDIR)/%.o)
 	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $(BUILDDIR)/$@
@@ -20,6 +20,9 @@ client: $(BUILDDIR)/client.cpp.o
 	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $(BUILDDIR)/$@
 
 test: $(TEST_SRCS:%.cpp=$(BUILD_TEST_DIR)/%)
+
+mygrader: $(BUILDDIR)/mygrader.cpp.o
+	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $(BUILDDIR)/$@
 
 # Rule to link each test executable
 $(BUILD_TEST_DIR)/%: $(BUILD_TEST_DIR)/%.cpp.o
