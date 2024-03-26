@@ -1,5 +1,5 @@
 CC = clang
-CXX = clang++
+CXX = g++
 
 CFLAGS := $(CFLAGS) -g -O3 -Wall -Wextra -pedantic -Werror -std=c18 -pthread
 CXX_TEST_FLAGS := $(CXX_TEST_FLAGS) -g -O3 -Wall -Wextra -pedantic -std=c++20 -pthread
