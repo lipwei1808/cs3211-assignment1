@@ -35,12 +35,25 @@ public:
             l = std::unique_lock<std::mutex>(asks_lock);
 
         std::shared_ptr<Price> priceLevel = GetPrice<side>(order->GetPrice());
+        bool found = false;
         for (auto start = priceLevel->begin(); start != priceLevel->end(); start++)
             if (order->GetOrderId() == (*start)->GetOrderId())
+            {
+                found = true;
                 priceLevel->erase(start);
-
-
-        Output::OrderDeleted(order->GetOrderId(), true, getCurrentTimestamp());
+            }
+        if (priceLevel->size() == 0)
+        {
+            // Remove from map of prices
+            size_t num = ([&]() -> size_t {
+                if constexpr (side == Side::BUY) 
+                    return bids.Erase(order->GetPrice());
+                else 
+                    return asks.Erase(order->GetPrice()); 
+            })();
+            assert(num == 1);
+        }
+        Output::OrderDeleted(order->GetOrderId(), found, getCurrentTimestamp());
     }
 
 private:
