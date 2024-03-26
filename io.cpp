@@ -4,8 +4,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "io.hpp"
 #include "engine.hpp"
+#include "io.hpp"
 
 // out of line definitions for the mutexes in SyncCerr/SyncCout
 std::mutex SyncCerr::mut;
@@ -13,24 +13,24 @@ std::mutex SyncCout::mut;
 
 void ClientConnection::freeHandle()
 {
-	if(m_handle != -1)
-	{
-		close(m_handle);
-		m_handle = -1;
-	}
+    if (m_handle != -1)
+    {
+        close(m_handle);
+        m_handle = -1;
+    }
 }
 
-ReadResult ClientConnection::readInput(ClientCommand& read_into)
+ReadResult ClientConnection::readInput(ClientCommand & read_into)
 {
-	switch(read(m_handle, &read_into, sizeof(ClientCommand)))
-	{
-		case 0: //
-			return ReadResult::EndOfFile;
+    switch (read(m_handle, &read_into, sizeof(ClientCommand)))
+    {
+        case 0: //
+            return ReadResult::EndOfFile;
 
-		case sizeof(ClientCommand): //
-			return ReadResult::Success;
+        case sizeof(ClientCommand): //
+            return ReadResult::Success;
 
-		default: //
-			return ReadResult::Error;
-	}
+        default: //
+            return ReadResult::Error;
+    }
 }
