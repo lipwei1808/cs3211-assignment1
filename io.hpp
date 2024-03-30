@@ -3,6 +3,9 @@
 
 #pragma once
 
+#define DEBUG
+#define UNUSED(x) (void)(x)
+
 #include <cstdint>
 #include <iostream>
 #include <mutex>
@@ -96,6 +99,35 @@ struct SyncCerr
     friend const SyncCerr & operator<<(const SyncCerr & s, std::ostream & (*f)(std::ostream &))
     {
         std::cerr << f;
+        return s;
+    }
+};
+
+struct SyncInfo
+{
+    static std::mutex mut;
+    std::scoped_lock<std::mutex> lock{SyncInfo::mut};
+
+    template <typename T>
+    friend const SyncInfo & operator<<(const SyncInfo & s, T && v)
+    {
+#if defined DEBUG
+        std::cerr << std::forward<T>(v);
+#else
+        UNUSED(s);
+        UNUSED(v);
+#endif
+        return s;
+    }
+
+    friend const SyncInfo & operator<<(const SyncInfo & s, std::ostream & (*f)(std::ostream &))
+    {
+#if defined DEBUG
+        std::cerr << f;
+#else
+        UNUSED(s);
+        UNUSED(f);
+#endif
         return s;
     }
 };

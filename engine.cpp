@@ -26,6 +26,7 @@ void Engine::connection_thread(ClientConnection connection)
             case ReadResult::Error:
                 SyncCerr{} << "Error reading input" << std::endl;
             case ReadResult::EndOfFile:
+                SyncCerr{} << "END OF FILE\n";
                 return;
             case ReadResult::Success:
                 break;
@@ -64,22 +65,20 @@ void Engine::connection_thread(ClientConnection connection)
                 orders.insert({order->GetOrderId(), order});
                 std::shared_ptr<OrderBook> ob = GetOrderBook(order->GetInstrumentId());
                 if (order->GetSide() == Side::BUY)
+                {
+                    std::unique_lock<std::mutex> l(ob->buy);
                     ob->Handle<Side::BUY>(order);
+                }
                 else
+                {
+                    std::unique_lock<std::mutex> l(ob->sell);
                     ob->Handle<Side::SELL>(order);
+                }
                 break;
             }
         }
-
-        // Additionally:
-
-        // Remember to take timestamp at the appropriate time, or compute
-        // an appropriate timestamp!
-        // intmax_t output_time = getCurrentTimestamp();
-
-        // Check the parameter names in `io.hpp`.
-        // Output::OrderExecuted(123, 124, 1, 2000, 10, output_time);
     }
+    SyncCerr() << "END OF THREAD\n";
 }
 
 std::shared_ptr<OrderBook> Engine::GetOrderBook(instrument_id_t instrument)
