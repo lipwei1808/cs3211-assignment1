@@ -46,7 +46,7 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
             order->GetPrice(),
             order->GetCount(),
             side == Side::SELL,
-            order->GetTimestamp());
+            getCurrentTimestamp());
     }
 
     // Add
@@ -145,12 +145,12 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
         if (priceQueue->size() == 0)
         {
             // Remove from map of prices
-            size_t num = ([&]() -> size_t
-                    {
-          if constexpr (side == Side::BUY) 
-            return asks.Erase(firstEl->first);
-          else 
-            return bids.Erase(firstEl->first); })();
+            size_t num = ([&]() -> size_t {
+                if constexpr (side == Side::BUY) 
+                    return asks.Erase(firstEl->first);
+                else 
+                    return bids.Erase(firstEl->first);
+            })();
             assert(num == 1);
         }
     }

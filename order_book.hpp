@@ -37,11 +37,17 @@ public:
         std::shared_ptr<Price> priceLevel = GetPrice<side>(order->GetPrice());
         bool found = false;
         for (auto start = priceLevel->begin(); start != priceLevel->end(); start++)
-            if (order->GetOrderId() == (*start)->GetOrderId())
+        {
+            std::shared_ptr<Order> p = *start;
+            while (!p->GetActivated())
+                p->cv.wait(l);
+
+            if (order->GetOrderId() == p->GetOrderId() && p->GetCount() > 0)
             {
                 found = true;
                 priceLevel->erase(start);
             }
+        }
         if (priceLevel->size() == 0)
         {
             // Remove from map of prices
