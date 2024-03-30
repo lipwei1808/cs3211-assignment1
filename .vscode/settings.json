@@ -63,6 +63,9 @@
     "chrono": "cpp",
     "shared_mutex": "cpp",
     "condition_variable": "cpp",
-    "unordered_set": "cpp"
+    "unordered_set": "cpp",
+    "execution": "cpp",
+    "fstream": "cpp",
+    "iomanip": "cpp"
   }
 }

@@ -29,11 +29,15 @@ public:
     {
         assert(order->GetSide() == side);
         std::unique_lock<std::mutex> l;
+        SyncCerr() << "[CANCEL WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+                   << std::endl;
         if constexpr (side == Side::BUY)
             l = std::unique_lock<std::mutex>(bids_lock);
         else
             l = std::unique_lock<std::mutex>(asks_lock);
 
+        SyncCerr() << "[CANCEL] Order: " << order->GetOrderId() << ", Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+                   << std::endl;
         std::shared_ptr<Price> priceLevel = GetPrice<side>(order->GetPrice());
         bool found = false;
         for (auto start = priceLevel->begin(); start != priceLevel->end(); start++)
@@ -60,6 +64,8 @@ public:
             assert(num == 1);
         }
         Output::OrderDeleted(order->GetOrderId(), found, getCurrentTimestamp());
+        SyncCerr() << "[CANCEL RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+                   << std::endl;
     }
 
 private:

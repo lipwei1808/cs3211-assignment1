@@ -3,6 +3,9 @@
 
 #pragma once
 
+#define DEBUG
+#define UNUSED(x) (void)(x)
+
 #include <cstdint>
 #include <iostream>
 #include <mutex>
@@ -68,7 +71,13 @@ struct SyncCout
     template <typename T>
     friend const SyncCout & operator<<(const SyncCout & s, T && v)
     {
+#if defined DEBUG
         std::cout << std::forward<T>(v);
+#else
+        UNUSED(s);
+        UNUSED(v);
+#endif
+        // std::cout << std::forward<T>(v);
         return s;
     }
 
@@ -89,13 +98,23 @@ struct SyncCerr
     template <typename T>
     friend const SyncCerr & operator<<(const SyncCerr & s, T && v)
     {
+#if defined DEBUG
         std::cerr << std::forward<T>(v);
+#else
+        UNUSED(s);
+        UNUSED(v);
+#endif
         return s;
     }
 
     friend const SyncCerr & operator<<(const SyncCerr & s, std::ostream & (*f)(std::ostream &))
     {
+#if defined DEBUG
         std::cerr << f;
+#else
+        UNUSED(s);
+        UNUSED(f);
+#endif
         return s;
     }
 };

@@ -23,8 +23,9 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
     assert(side == Side::SELL || side == Side::BUY);
     assert(order->GetSide() == side);
     assert(order->GetActivated() == false);
+    SyncCerr() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ", for BOTH LOCKS\n";
     std::unique_lock<std::mutex> l(order_book_lock);
-
+    SyncCerr() << "[HANDLE] Order: " << order->GetOrderId() << ",  Acquired BOTH LOCKS\n";
     // Get timestamp for order
     order->SetTimestamp(getCurrentTimestamp());
 
@@ -34,10 +35,19 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
     else
         Add<Side::SELL>(order);
 
+    SyncCerr() << "[HANDLE RELEASE] Order: " << order->GetOrderId() << ",  BOTH LOCKS\n";
     l.unlock();
 
     // Execute
     bool filled = Execute<side>(order);
+    SyncCerr() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+               << std::endl;
+    if constexpr (side == Side::BUY)
+        std::unique_lock<std::mutex> l(bids_lock);
+    else
+        std::unique_lock<std::mutex> l(asks_lock);
+    SyncCerr() << "[HANDLE] Order: " << order->GetOrderId() << ",  Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+               << std::endl;
     if (!filled)
     {
         Output::OrderAdded(
@@ -51,18 +61,24 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
 
     // Add
     order->Activate();
+    SyncCerr() << "[HANDLE RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+               << std::endl;
 }
 
 template <Side side>
 void OrderBook::Add(std::shared_ptr<Order> order)
 {
     assert(order->GetSide() == side);
+    SyncCerr() << "[ADD WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+               << std::endl;
     if constexpr (side == Side::BUY)
         std::unique_lock<std::mutex> l(bids_lock);
     else
         std::unique_lock<std::mutex> l(asks_lock);
+    SyncCerr() << "[ADD] Order: " << order->GetOrderId() << ", Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!" << std::endl;
     std::shared_ptr<Price> p = GetPrice<side>(order->GetPrice());
     p->push_back(order);
+    SyncCerr() << "[ADD RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!" << std::endl;
 }
 
 /**
@@ -76,11 +92,16 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
     assert(order->GetSide() == side);
     assert(order->GetActivated() == false);
     std::unique_lock<std::mutex> l;
+    SyncCerr() << "[EXECUTE WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
+               << std::endl;
     if constexpr (side == Side::BUY)
         l = std::unique_lock<std::mutex>(asks_lock);
     else
         l = std::unique_lock<std::mutex>(bids_lock);
 
+    SyncCerr() << "[EXECUTE] Order: " << order->GetOrderId() << ",  Acquire " << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
+               << std::endl;
+    int tmp = 0;
     while (order->GetCount() > 0)
     {
         // Check if any sell orders
@@ -106,7 +127,10 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
         assert(firstEl->second.initialised);
         std::shared_ptr<Price> priceQueue = firstEl->second.Get();
         assert(priceQueue->size() != 0);
-
+        if (tmp < 5)
+            SyncCerr() << "[EXECUTE] Order: " << order->GetOrderId() << ". Order Price: " << order->GetPrice() << ", oppPrice: " << price
+                       << ", priceQueueSize: " << priceQueue->size() << std::endl;
+        tmp++;
         if constexpr (side == Side::BUY)
         {
             if (price > order->GetPrice())
@@ -128,7 +152,10 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
 
             // Check if sell order is activated
             while (!oppOrder->GetActivated())
+            {
+                SyncCerr() << "[EXECUTE] Order: " << order->GetOrderId() << " going to sleep" << std::endl;
                 oppOrder->cv.wait(l);
+            }
 
             // Check if dummy order has already been filled
             if (oppOrder->GetCount() == 0)
@@ -154,6 +181,8 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
             assert(num == 1);
         }
     }
+    SyncCerr() << "[EXECUTE RELEASE] Order: " << order->GetOrderId() << ",  " << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
+               << std::endl;
     return order->GetCount() == 0;
 }
 
