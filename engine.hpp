@@ -6,23 +6,20 @@
 
 #include <chrono>
 #include <memory>
-#include <mutex>
 
-#include "io.hpp"
 #include "atomic_map.hpp"
+#include "io.hpp"
 #include "order_book.hpp"
-#include "order.hpp"
 
 struct Engine
 {
 public:
-  Engine();
-  void accept(ClientConnection conn);
-  std::shared_ptr<OrderBook> GetOrderBook(instrument_id_t instrument);
+    void accept(ClientConnection conn);
+    std::shared_ptr<OrderBook> GetOrderBook(instrument_id_t instrument);
 
 private:
-  void connection_thread(ClientConnection conn);
-  AtomicMap<instrument_id_t, WrapperValue<std::shared_ptr<OrderBook>>> instruments;
+    void connection_thread(ClientConnection conn);
+    AtomicMap<instrument_id_t, WrapperValue<std::shared_ptr<OrderBook>>> instruments;
 };
 
 #endif

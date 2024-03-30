@@ -9,10 +9,6 @@
 #include "order.hpp"
 #include "order_book.hpp"
 
-Engine::Engine()
-{
-}
-
 void Engine::accept(ClientConnection connection)
 {
     auto thread = std::thread(&Engine::connection_thread, this, std::move(connection));
@@ -71,10 +67,6 @@ void Engine::connection_thread(ClientConnection connection)
                     ob->Handle<Side::BUY>(order);
                 else
                     ob->Handle<Side::SELL>(order);
-
-                // auto output_time = getCurrentTimestamp();
-                // Output::OrderAdded(input.order_id, input.instrument, input.price, input.count, input.type == input_sell,
-                // 									 output_time);
                 break;
             }
         }
