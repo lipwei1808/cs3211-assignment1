@@ -25,48 +25,7 @@ public:
     template <Side side>
     void Handle(std::shared_ptr<Order> order);
     template <Side side>
-    void Cancel(std::shared_ptr<Order> order)
-    {
-        assert(order->GetSide() == side);
-        std::unique_lock<std::mutex> l;
-        SyncInfo() << "[CANCEL WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
-                   << std::endl;
-        if constexpr (side == Side::BUY)
-            l = std::unique_lock<std::mutex>(bids_lock);
-        else
-            l = std::unique_lock<std::mutex>(asks_lock);
-
-        SyncInfo() << "[CANCEL] Order: " << order->GetOrderId() << ", Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
-                   << std::endl;
-        std::shared_ptr<Price> priceLevel = GetPrice<side>(order->GetPrice());
-        bool found = false;
-        for (auto start = priceLevel->begin(); start != priceLevel->end(); start++)
-        {
-            std::shared_ptr<Order> p = *start;
-            while (!p->GetActivated())
-                p->cv.wait(l);
-
-            if (order->GetOrderId() == p->GetOrderId() && p->GetCount() > 0)
-            {
-                found = true;
-                priceLevel->erase(start);
-            }
-        }
-        if (priceLevel->size() == 0)
-        {
-            // Remove from map of prices
-            size_t num = ([&]() -> size_t {
-                if constexpr (side == Side::BUY) 
-                    return bids.Erase(order->GetPrice());
-                else 
-                    return asks.Erase(order->GetPrice()); 
-            })();
-            assert(num == 1);
-        }
-        Output::OrderDeleted(order->GetOrderId(), found, getCurrentTimestamp());
-        SyncInfo() << "[CANCEL RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
-                   << std::endl;
-    }
+    void Cancel(std::shared_ptr<Order> order);
 
     std::mutex buy;
     std::mutex sell;
