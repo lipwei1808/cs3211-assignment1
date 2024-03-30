@@ -71,13 +71,7 @@ struct SyncCout
     template <typename T>
     friend const SyncCout & operator<<(const SyncCout & s, T && v)
     {
-#if defined DEBUG
         std::cout << std::forward<T>(v);
-#else
-        UNUSED(s);
-        UNUSED(v);
-#endif
-        // std::cout << std::forward<T>(v);
         return s;
     }
 
@@ -98,6 +92,25 @@ struct SyncCerr
     template <typename T>
     friend const SyncCerr & operator<<(const SyncCerr & s, T && v)
     {
+        std::cerr << std::forward<T>(v);
+        return s;
+    }
+
+    friend const SyncCerr & operator<<(const SyncCerr & s, std::ostream & (*f)(std::ostream &))
+    {
+        std::cerr << f;
+        return s;
+    }
+};
+
+struct SyncInfo
+{
+    static std::mutex mut;
+    std::scoped_lock<std::mutex> lock{SyncInfo::mut};
+
+    template <typename T>
+    friend const SyncInfo & operator<<(const SyncInfo & s, T && v)
+    {
 #if defined DEBUG
         std::cerr << std::forward<T>(v);
 #else
@@ -107,7 +120,7 @@ struct SyncCerr
         return s;
     }
 
-    friend const SyncCerr & operator<<(const SyncCerr & s, std::ostream & (*f)(std::ostream &))
+    friend const SyncInfo & operator<<(const SyncInfo & s, std::ostream & (*f)(std::ostream &))
     {
 #if defined DEBUG
         std::cerr << f;

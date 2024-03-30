@@ -64,9 +64,15 @@ void Engine::connection_thread(ClientConnection connection)
                 orders.insert({order->GetOrderId(), order});
                 std::shared_ptr<OrderBook> ob = GetOrderBook(order->GetInstrumentId());
                 if (order->GetSide() == Side::BUY)
+                {
+                    std::unique_lock<std::mutex> l(ob->buy);
                     ob->Handle<Side::BUY>(order);
+                }
                 else
+                {
+                    std::unique_lock<std::mutex> l(ob->sell);
                     ob->Handle<Side::SELL>(order);
+                }
                 break;
             }
         }

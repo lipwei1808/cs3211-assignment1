@@ -23,9 +23,9 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
     assert(side == Side::SELL || side == Side::BUY);
     assert(order->GetSide() == side);
     assert(order->GetActivated() == false);
-    SyncCerr() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ", for BOTH LOCKS\n";
+    SyncInfo() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ", for BOTH LOCKS\n";
     std::unique_lock<std::mutex> l(order_book_lock);
-    SyncCerr() << "[HANDLE] Order: " << order->GetOrderId() << ",  Acquired BOTH LOCKS\n";
+    SyncInfo() << "[HANDLE] Order: " << order->GetOrderId() << ",  Acquired BOTH LOCKS\n";
     // Get timestamp for order
     order->SetTimestamp(getCurrentTimestamp());
 
@@ -35,21 +35,21 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
     else
         Add<Side::SELL>(order);
 
-    SyncCerr() << "[HANDLE RELEASE] Order: " << order->GetOrderId() << ",  BOTH LOCKS\n";
+    SyncInfo() << "[HANDLE RELEASE] Order: " << order->GetOrderId() << ",  BOTH LOCKS\n";
     l.unlock();
 
     // Execute
     bool filled = Execute<side>(order);
-    SyncCerr() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+    SyncInfo() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
                << std::endl;
+    std::unique_lock<std::mutex> lo;
     if constexpr (side == Side::BUY)
-        std::unique_lock<std::mutex> l(bids_lock);
+        lo = std::unique_lock<std::mutex>(bids_lock);
     else
-        std::unique_lock<std::mutex> l(asks_lock);
-    SyncCerr() << "[HANDLE] Order: " << order->GetOrderId() << ",  Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+        lo = std::unique_lock<std::mutex>(asks_lock);
+    SyncInfo() << "[HANDLE] Order: " << order->GetOrderId() << ",  Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
                << std::endl;
     if (!filled)
-    {
         Output::OrderAdded(
             order->GetOrderId(),
             order->GetInstrumentId().c_str(),
@@ -57,11 +57,10 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
             order->GetCount(),
             side == Side::SELL,
             getCurrentTimestamp());
-    }
 
     // Add
     order->Activate();
-    SyncCerr() << "[HANDLE RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+    SyncInfo() << "[***HANDLE RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
                << std::endl;
 }
 
@@ -69,16 +68,17 @@ template <Side side>
 void OrderBook::Add(std::shared_ptr<Order> order)
 {
     assert(order->GetSide() == side);
-    SyncCerr() << "[ADD WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
+    SyncInfo() << "[ADD WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
                << std::endl;
+    std::unique_lock<std::mutex> l;
     if constexpr (side == Side::BUY)
-        std::unique_lock<std::mutex> l(bids_lock);
+        l = std::unique_lock<std::mutex>(bids_lock);
     else
-        std::unique_lock<std::mutex> l(asks_lock);
-    SyncCerr() << "[ADD] Order: " << order->GetOrderId() << ", Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!" << std::endl;
+        l = std::unique_lock<std::mutex>(asks_lock);
+    SyncInfo() << "[ADD] Order: " << order->GetOrderId() << ", Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!" << std::endl;
     std::shared_ptr<Price> p = GetPrice<side>(order->GetPrice());
     p->push_back(order);
-    SyncCerr() << "[ADD RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!" << std::endl;
+    SyncInfo() << "[ADD RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!" << std::endl;
 }
 
 /**
@@ -92,54 +92,60 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
     assert(order->GetSide() == side);
     assert(order->GetActivated() == false);
     std::unique_lock<std::mutex> l;
-    SyncCerr() << "[EXECUTE WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
+    SyncInfo() << "[EXECUTE WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
                << std::endl;
     if constexpr (side == Side::BUY)
         l = std::unique_lock<std::mutex>(asks_lock);
     else
         l = std::unique_lock<std::mutex>(bids_lock);
 
-    SyncCerr() << "[EXECUTE] Order: " << order->GetOrderId() << ",  Acquire " << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
+    SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << ",  Acquire " << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
                << std::endl;
-    int tmp = 0;
-    while (order->GetCount() > 0)
+    // Check if any sell orders
+    if constexpr (side == Side::BUY)
     {
-        // Check if any sell orders
-        if constexpr (side == Side::BUY)
-        {
-            if (asks.Size() == 0)
-                return false;
-        }
-        else
-        {
-            if (bids.Size() == 0)
-                return false;
-        }
-
-        // Check if lowest sell order can match the buy
-        auto firstEl = ([&]() {
-          if constexpr (side == Side::BUY) 
-            return asks.begin();
-          else 
-            return bids.begin(); 
-        })();
+        if (asks.Size() == 0)
+            return false;
+    }
+    else
+    {
+        if (bids.Size() == 0)
+            return false;
+    }
+    int tmp = 0;
+    // Check if lowest sell order can match the buy
+    auto firstEl = ([&]() {
+        if constexpr (side == Side::BUY) 
+        return asks.begin();
+        else 
+        return bids.begin(); 
+    })();
+    auto lastEl = ([&]() {
+        if constexpr (side == Side::BUY) 
+        return asks.end();
+        else 
+        return bids.end(); 
+    })();
+    while (firstEl != lastEl)
+    {
         price_t price = firstEl->first;
         assert(firstEl->second.initialised);
         std::shared_ptr<Price> priceQueue = firstEl->second.Get();
-        assert(priceQueue->size() != 0);
+
         if (tmp < 5)
-            SyncCerr() << "[EXECUTE] Order: " << order->GetOrderId() << ". Order Price: " << order->GetPrice() << ", oppPrice: " << price
-                       << ", priceQueueSize: " << priceQueue->size() << std::endl;
+            SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << ". Order Price: " << order->GetPrice()
+                       << ", Order count: " << order->GetCount() << ", oppPrice: " << price << ", priceQueueSize: " << priceQueue->size()
+                       << std::endl;
         tmp++;
         if constexpr (side == Side::BUY)
         {
             if (price > order->GetPrice())
-                return false;
+                return order->GetCount() == 0;
         }
         else
         {
             if (price < order->GetPrice())
-                return false;
+                return order->GetCount() == 0;
         }
 
         // Iteratively match with all orders in this price queue.
@@ -153,7 +159,7 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
             // Check if sell order is activated
             while (!oppOrder->GetActivated())
             {
-                SyncCerr() << "[EXECUTE] Order: " << order->GetOrderId() << " going to sleep" << std::endl;
+                SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << " going to sleep" << std::endl;
                 oppOrder->cv.wait(l);
             }
 
@@ -168,20 +174,9 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
             if (oppOrder->GetCount() == 0)
                 priceQueue->pop_front();
         }
-
-        if (priceQueue->size() == 0)
-        {
-            // Remove from map of prices
-            size_t num = ([&]() -> size_t {
-                if constexpr (side == Side::BUY) 
-                    return asks.Erase(firstEl->first);
-                else 
-                    return bids.Erase(firstEl->first);
-            })();
-            assert(num == 1);
-        }
+        firstEl++;
     }
-    SyncCerr() << "[EXECUTE RELEASE] Order: " << order->GetOrderId() << ",  " << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
+    SyncInfo() << "[EXECUTE RELEASE] Order: " << order->GetOrderId() << ",  " << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
                << std::endl;
     return order->GetCount() == 0;
 }
