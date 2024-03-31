@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <deque>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -114,7 +115,6 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
         if (bids.Size() == 0)
             return false;
     }
-    int tmp = 0;
     // Check if lowest sell order can match the buy
     auto firstEl = ([&]() {
         if constexpr (side == Side::BUY) 
@@ -134,11 +134,9 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
         assert(firstEl->second.initialised);
         std::shared_ptr<Price> priceQueue = firstEl->second.Get();
 
-        if (tmp < 5)
-            SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << ". Order Price: " << order->GetPrice()
-                       << ", Order count: " << order->GetCount() << ", oppPrice: " << price << ", priceQueueSize: " << priceQueue->size()
-                       << std::endl;
-        tmp++;
+        SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << ". Order Price: " << order->GetPrice()
+                   << ", Order count: " << order->GetCount() << ", oppPrice: " << price << ", priceQueueSize: " << priceQueue->size()
+                   << std::endl;
         if constexpr (side == Side::BUY)
         {
             if (price > order->GetPrice())
@@ -187,42 +185,40 @@ template <Side side>
 void OrderBook::Cancel(std::shared_ptr<Order> order)
 {
     assert(order->GetSide() == side);
-    std::unique_lock<std::mutex> l;
     SyncInfo() << "[CANCEL WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
                << std::endl;
-    if constexpr (side == Side::BUY)
-        l = std::unique_lock<std::mutex>(bids_lock);
-    else
-        l = std::unique_lock<std::mutex>(asks_lock);
+    std::unique_lock<std::mutex> l(side == Side::BUY ? bids_lock : asks_lock);
 
     SyncInfo() << "[CANCEL] Order: " << order->GetOrderId() << ", Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
                << std::endl;
     std::shared_ptr<Price> priceLevel = GetPrice<side>(order->GetPrice());
-    bool found = false;
+    std::deque<std::shared_ptr<Order>>::iterator x = priceLevel->end();
     for (auto start = priceLevel->begin(); start != priceLevel->end(); start++)
     {
         std::shared_ptr<Order> p = *start;
-        while (!p->GetActivated())
-            p->cv.wait(l);
-
-        if (order->GetOrderId() == p->GetOrderId() && p->GetCount() > 0)
+        if (p->GetOrderId() == order->GetOrderId())
         {
-            found = true;
-            priceLevel->erase(start);
+            x = start;
+            break;
         }
     }
-    if (priceLevel->size() == 0)
+
+    std::shared_ptr<Order> o = *x;
+    if (x == priceLevel->end())
     {
-        // Remove from map of prices
-        size_t num = ([&]() -> size_t {
-                if constexpr (side == Side::BUY) 
-                    return bids.Erase(order->GetPrice());
-                else 
-                    return asks.Erase(order->GetPrice()); 
-            })();
-        assert(num == 1);
+        Output::OrderDeleted(order->GetOrderId(), false, getCurrentTimestamp());
+        return;
     }
-    Output::OrderDeleted(order->GetOrderId(), found, getCurrentTimestamp());
+    while (!o->GetActivated())
+    {
+        SyncInfo() << "[CANCEL] Order: " << o->GetOrderId() << ", GOIN G TO SLEEP\n";
+        o->cv.wait(l);
+    }
+    int cnt = o->GetCount();
+    if (cnt > 0)
+        priceLevel->erase(x);
+
+    Output::OrderDeleted(order->GetOrderId(), cnt, getCurrentTimestamp());
     SyncInfo() << "[CANCEL RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
                << std::endl;
 }

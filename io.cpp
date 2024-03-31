@@ -10,7 +10,6 @@
 // out of line definitions for the mutexes in SyncCerr/SyncCout
 std::mutex SyncCerr::mut;
 std::mutex SyncCout::mut;
-std::mutex SyncInfo::mut;
 
 void ClientConnection::freeHandle()
 {

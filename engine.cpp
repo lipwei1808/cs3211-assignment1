@@ -66,19 +66,23 @@ void Engine::connection_thread(ClientConnection connection)
                 std::shared_ptr<OrderBook> ob = GetOrderBook(order->GetInstrumentId());
                 if (order->GetSide() == Side::BUY)
                 {
+                    SyncInfo() << "WAITING TO ENTER ID: " << input.order_id << std::endl;
                     std::unique_lock<std::mutex> l(ob->buy);
+                    SyncInfo() << "ENTERING ID: " << input.order_id << std::endl;
                     ob->Handle<Side::BUY>(order);
                 }
                 else
                 {
+                    SyncInfo() << "WAITING TO ENTER ID: " << input.order_id << std::endl;
                     std::unique_lock<std::mutex> l(ob->sell);
+                    SyncInfo() << "ENTERING ID: " << input.order_id << std::endl;
                     ob->Handle<Side::SELL>(order);
                 }
                 break;
             }
         }
+        SyncCerr() << "END OF INPUT\n";
     }
-    SyncCerr() << "END OF THREAD\n";
 }
 
 std::shared_ptr<OrderBook> Engine::GetOrderBook(instrument_id_t instrument)

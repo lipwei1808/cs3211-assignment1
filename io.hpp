@@ -106,7 +106,7 @@ struct SyncCerr
 struct SyncInfo
 {
     static std::mutex mut;
-    std::scoped_lock<std::mutex> lock{SyncInfo::mut};
+    std::scoped_lock<std::mutex> lock{SyncCerr::mut};
 
     template <typename T>
     friend const SyncInfo & operator<<(const SyncInfo & s, T && v)
