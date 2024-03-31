@@ -39,11 +39,9 @@ public:
 
     void SetTimestamp(std::chrono::microseconds::rep tm) { timestamp = tm; }
 
-    bool GetActivated()
-    {
-        std::unique_lock<std::mutex> l(lock);
-        return activated;
-    }
+    bool GetActivated() { return activated; }
+    bool GetCompleted() const { return completed; }
+    void SetCompleted() { completed = true; }
 
     void Fill() { Fill(count); }
 
@@ -51,7 +49,6 @@ public:
 
     void Activate()
     {
-        std::unique_lock<std::mutex> l(lock);
         activated = true;
         cv.notify_all();
     }
@@ -67,8 +64,7 @@ private:
     Side side;
     std::chrono::microseconds::rep timestamp;
     bool activated;
-
-    std::mutex lock;
+    bool completed;
 };
 
 #endif

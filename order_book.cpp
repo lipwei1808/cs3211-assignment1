@@ -163,6 +163,9 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
                 oppOrder->cv.wait(l);
             }
 
+            if (oppOrder->GetCompleted())
+                continue;
+
             // Check if dummy order has already been filled
             if (oppOrder->GetCount() == 0)
             {
@@ -172,7 +175,10 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
             oppOrder->IncrementExecutionId();
             MatchOrders(order, oppOrder);
             if (oppOrder->GetCount() == 0)
+            {
+                oppOrder->SetCompleted();
                 priceQueue->pop_front();
+            }
         }
         firstEl++;
     }
@@ -188,37 +194,38 @@ void OrderBook::Cancel(std::shared_ptr<Order> order)
     SyncInfo() << "[CANCEL WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
                << std::endl;
     std::unique_lock<std::mutex> l(side == Side::BUY ? bids_lock : asks_lock);
-
+    while (!order->GetActivated())
+    {
+        SyncInfo() << "[CANCEL] Order: " << order->GetOrderId() << ", GOIN G TO SLEEP\n";
+        order->cv.wait(l);
+    }
     SyncInfo() << "[CANCEL] Order: " << order->GetOrderId() << ", Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
                << std::endl;
-    std::shared_ptr<Price> priceLevel = GetPrice<side>(order->GetPrice());
-    std::deque<std::shared_ptr<Order>>::iterator x = priceLevel->end();
-    for (auto start = priceLevel->begin(); start != priceLevel->end(); start++)
-    {
-        std::shared_ptr<Order> p = *start;
-        if (p->GetOrderId() == order->GetOrderId())
-        {
-            x = start;
-            break;
-        }
-    }
 
-    std::shared_ptr<Order> o = *x;
-    if (x == priceLevel->end())
+    std::shared_ptr<Price> priceQueue = GetPrice<side>(order->GetPrice());
+    std::deque<std::shared_ptr<Order>>::iterator start;
+    for (start = priceQueue->begin(); start != priceQueue->end(); start++)
+        if ((*start)->GetOrderId() == order->GetOrderId())
+            break;
+
+    // No order found
+    if (start == priceQueue->end())
     {
         Output::OrderDeleted(order->GetOrderId(), false, getCurrentTimestamp());
         return;
     }
-    while (!o->GetActivated())
+
+    std::shared_ptr<Order> o = *start;
+    if (o->GetCompleted())
     {
-        SyncInfo() << "[CANCEL] Order: " << o->GetOrderId() << ", GOIN G TO SLEEP\n";
-        o->cv.wait(l);
+        Output::OrderDeleted(order->GetOrderId(), false, getCurrentTimestamp());
+        return;
     }
     int cnt = o->GetCount();
-    if (cnt > 0)
-        priceLevel->erase(x);
+    o->SetCompleted();
+    priceQueue->erase(start);
 
-    Output::OrderDeleted(order->GetOrderId(), cnt, getCurrentTimestamp());
+    Output::OrderDeleted(order->GetOrderId(), cnt > 0, getCurrentTimestamp());
     SyncInfo() << "[CANCEL RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
                << std::endl;
 }
