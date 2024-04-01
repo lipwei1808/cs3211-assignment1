@@ -23,7 +23,6 @@ template std::shared_ptr<Price> OrderBook::GetPrice<Side::BUY>(price_t price);
 template <Side side>
 void OrderBook::Handle(std::shared_ptr<Order> order)
 {
-    assert(side == Side::SELL || side == Side::BUY);
     assert(order->GetSide() == side);
     assert(order->GetActivated() == false);
     SyncInfo() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ", for BOTH LOCKS\n";

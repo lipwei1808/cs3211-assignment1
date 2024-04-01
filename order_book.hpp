@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <deque>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <assert.h>
@@ -39,8 +40,8 @@ private:
     bool Execute(std::shared_ptr<Order> order);
     void MatchOrders(std::shared_ptr<Order> o1, std::shared_ptr<Order> o2);
 
-    AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>, std::greater<price_t>> bids;
-    AtomicMap<price_t, WrapperValue<std::shared_ptr<Price>>> asks;
+    std::map<price_t, std::shared_ptr<Price>, std::greater<price_t>> bids;
+    std::map<price_t, std::shared_ptr<Price>> asks;
 
     std::mutex order_book_lock;
     std::mutex bids_lock;
