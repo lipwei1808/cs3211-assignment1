@@ -5,3 +5,5 @@ client
 compile_commands.json
 .cache
 /test_cases/custom/*.in
+grader_*.md
+grader_*.html
