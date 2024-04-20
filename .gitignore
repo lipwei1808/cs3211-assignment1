@@ -4,7 +4,7 @@ compile_commands.json
 .cache
 
 grader_*.md
-grader_*.html
+*.html
 
 tests/custom/*
 !tests/custom/test_generator.cpp

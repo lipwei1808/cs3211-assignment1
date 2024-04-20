@@ -106,12 +106,12 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
     // Check if any sell orders
     if constexpr (side == Side::BUY)
     {
-        if (asks.Size() == 0)
+        if (asks.size() == 0)
             return false;
     }
     else
     {
-        if (bids.Size() == 0)
+        if (bids.size() == 0)
             return false;
     }
     // Check if lowest sell order can match the buy
@@ -130,8 +130,7 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
     while (firstEl != lastEl)
     {
         price_t price = firstEl->first;
-        assert(firstEl->second.initialised);
-        std::shared_ptr<Price> priceQueue = firstEl->second.Get();
+        std::shared_ptr<Price> priceQueue = firstEl->second;
 
         SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << ". Order Price: " << order->GetPrice()
                    << ", Order count: " << order->GetCount() << ", oppPrice: " << price << ", priceQueueSize: " << priceQueue->size()
@@ -254,18 +253,7 @@ void OrderBook::MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Ord
 template <Side side>
 std::shared_ptr<Price> OrderBook::GetPrice(price_t price)
 {
-    WrapperValue<std::shared_ptr<Price>> &w = ([&]() {
-      if constexpr (side == Side::BUY)
-        return std::ref(bids.Get(price));
-      else
-        return std::ref(asks.Get(price)); 
-    })();
-
-    std::unique_lock<std::mutex> l(w.lock);
-    if (!w.initialised)
-    {
-        w.initialised = true;
-        w.val = std::make_shared<Price>();
-    }
-    return w.val;
+    if constexpr (side == Side::BUY)
+        return bids[price];
+    return asks[price];
 }
