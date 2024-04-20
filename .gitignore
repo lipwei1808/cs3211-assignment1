@@ -1,9 +1,11 @@
-engine
-client
 /build
 /.deps
 compile_commands.json
 .cache
-/test_cases/custom/*.in
+
 grader_*.md
 grader_*.html
+
+tests/custom/*
+!tests/custom/test_generator.cpp
+!tests/custom/README.md
