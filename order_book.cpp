@@ -254,6 +254,15 @@ template <Side side>
 std::shared_ptr<Price> OrderBook::GetPrice(price_t price)
 {
     if constexpr (side == Side::BUY)
+    {
+        if (!bids.contains(price))
+            bids[price] = std::make_shared<Price>();
         return bids[price];
-    return asks[price];
+    }
+    else
+    {
+        if (!asks.contains(price))
+            asks[price] = std::make_shared<Price>();
+        return asks[price];
+    }
 }
