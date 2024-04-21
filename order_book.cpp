@@ -23,7 +23,6 @@ template std::shared_ptr<Price> OrderBook::GetPrice<Side::BUY>(price_t price);
 template <Side side>
 void OrderBook::Handle(std::shared_ptr<Order> order)
 {
-    assert(side == Side::SELL || side == Side::BUY);
     assert(order->GetSide() == side);
     assert(order->GetActivated() == false);
     SyncInfo() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ", for BOTH LOCKS\n";
@@ -107,12 +106,12 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
     // Check if any sell orders
     if constexpr (side == Side::BUY)
     {
-        if (asks.Size() == 0)
+        if (asks.size() == 0)
             return false;
     }
     else
     {
-        if (bids.Size() == 0)
+        if (bids.size() == 0)
             return false;
     }
     // Check if lowest sell order can match the buy
@@ -131,8 +130,7 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
     while (firstEl != lastEl)
     {
         price_t price = firstEl->first;
-        assert(firstEl->second.initialised);
-        std::shared_ptr<Price> priceQueue = firstEl->second.Get();
+        std::shared_ptr<Price> priceQueue = firstEl->second;
 
         SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << ". Order Price: " << order->GetPrice()
                    << ", Order count: " << order->GetCount() << ", oppPrice: " << price << ", priceQueueSize: " << priceQueue->size()
@@ -255,18 +253,16 @@ void OrderBook::MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Ord
 template <Side side>
 std::shared_ptr<Price> OrderBook::GetPrice(price_t price)
 {
-    WrapperValue<std::shared_ptr<Price>> &w = ([&]() {
-      if constexpr (side == Side::BUY)
-        return std::ref(bids.Get(price));
-      else
-        return std::ref(asks.Get(price)); 
-    })();
-
-    std::unique_lock<std::mutex> l(w.lock);
-    if (!w.initialised)
+    if constexpr (side == Side::BUY)
     {
-        w.initialised = true;
-        w.val = std::make_shared<Price>();
+        if (!bids.contains(price))
+            bids[price] = std::make_shared<Price>();
+        return bids[price];
     }
-    return w.val;
+    else
+    {
+        if (!asks.contains(price))
+            asks[price] = std::make_shared<Price>();
+        return asks[price];
+    }
 }
