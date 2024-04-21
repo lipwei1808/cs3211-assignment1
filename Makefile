@@ -36,7 +36,7 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $(BUILDDIR)/$<.d
 COMPILE.cpp = $(CXX) $(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
 COMPILE_TEST.cpp = $(CXX) $(DEPFLAGS) $(CXX_TEST_FLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
 
-$(BUILD_TEST_DIR)/%.cpp.o: unit_tests/%.cpp | $(BUILD_TEST_DIR)
+$(BUILD_TEST_DIR)/%.cpp.o: tests/unit_tests/%.cpp | $(BUILD_TEST_DIR)
 	$(COMPILE_TEST.cpp) $(OUTPUT_OPTION) $<
 
 $(BUILDDIR)/%.cpp.o: %.cpp | $(BUILDDIR)

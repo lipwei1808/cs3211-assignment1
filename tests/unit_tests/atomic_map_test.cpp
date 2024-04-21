@@ -6,9 +6,9 @@
 #include <iostream>
 #include <assert.h>
 
-#include "../order_book.hpp"
-#include "../order.hpp"
-#include "../atomic_map.hpp"
+#include "../../order_book.hpp"
+#include "../../order.hpp"
+#include "../../atomic_map.hpp"
 
 struct test
 {

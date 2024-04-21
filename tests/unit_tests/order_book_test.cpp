@@ -2,16 +2,16 @@
 #include <iostream>
 #include <assert.h>
 
-#include "../order_book.hpp"
+#include "../../order_book.hpp"
 
 bool test()
 {
     OrderBook ob;
-    ob.asks.Get(9);
-    ob.asks.Get(2);
-    ob.asks.Get(3);
-    ob.asks.Get(5);
-    for (auto [k, _] : ob.asks.map)
+    ob.asks[9];
+    ob.asks[2];
+    ob.asks[3];
+    ob.asks[5];
+    for (auto [k, _] : ob.asks)
         std::cout << "[" << k << "]\n";
     return true;
 }
