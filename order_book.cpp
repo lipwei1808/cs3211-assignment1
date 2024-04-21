@@ -17,28 +17,25 @@ template bool OrderBook::Execute<Side::SELL>(std::shared_ptr<Order> order);
 template bool OrderBook::Execute<Side::BUY>(std::shared_ptr<Order> order);
 template void OrderBook::Cancel<Side::SELL>(std::shared_ptr<Order> order);
 template void OrderBook::Cancel<Side::BUY>(std::shared_ptr<Order> order);
-template std::shared_ptr<Price> OrderBook::GetPrice<Side::SELL>(price_t price);
-template std::shared_ptr<Price> OrderBook::GetPrice<Side::BUY>(price_t price);
 
 template <Side side>
 void OrderBook::Handle(std::shared_ptr<Order> order)
 {
     assert(order->GetSide() == side);
     assert(order->GetActivated() == false);
-    SyncInfo() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ", for BOTH LOCKS\n";
-    std::unique_lock<std::mutex> l(order_book_lock);
-    SyncInfo() << "[HANDLE] Order: " << order->GetOrderId() << ",  Acquired BOTH LOCKS\n";
-    // Get timestamp for order
-    order->SetTimestamp(getCurrentTimestamp());
 
-    // Insert dummy node into order
-    if constexpr (side == Side::BUY)
-        Add<Side::BUY>(order);
-    else
-        Add<Side::SELL>(order);
+    {
+        SyncInfo() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ", for BOTH LOCKS\n";
+        std::unique_lock<std::mutex> l(order_book_lock);
+        SyncInfo() << "[HANDLE] Order: " << order->GetOrderId() << ",  Acquired BOTH LOCKS\n";
+        // Get timestamp for order
+        order->SetTimestamp(getCurrentTimestamp());
 
-    SyncInfo() << "[HANDLE RELEASE] Order: " << order->GetOrderId() << ",  BOTH LOCKS\n";
-    l.unlock();
+        // Insert dummy node into order
+        Add<side>(order);
+
+        SyncInfo() << "[HANDLE RELEASE] Order: " << order->GetOrderId() << ",  BOTH LOCKS\n";
+    }
 
     // Execute
     bool filled = Execute<side>(order);
@@ -90,19 +87,10 @@ void OrderBook::Add(std::shared_ptr<Order> order)
 template <Side side>
 bool OrderBook::Execute(std::shared_ptr<Order> order)
 {
-    assert(side == Side::SELL || side == Side::BUY);
     assert(order->GetSide() == side);
     assert(order->GetActivated() == false);
-    std::unique_lock<std::mutex> l;
-    SyncInfo() << "[EXECUTE WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
-               << std::endl;
-    if constexpr (side == Side::BUY)
-        l = std::unique_lock<std::mutex>(asks_lock);
-    else
-        l = std::unique_lock<std::mutex>(bids_lock);
+    std::unique_lock<std::mutex> l(side == Side::BUY ? asks_lock : bids_lock);
 
-    SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << ",  Acquire " << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
-               << std::endl;
     // Check if any sell orders
     if constexpr (side == Side::BUY)
     {
@@ -127,6 +115,7 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
         else 
         return bids.end(); 
     })();
+
     while (firstEl != lastEl)
     {
         price_t price = firstEl->first;
@@ -165,13 +154,11 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
                 continue;
 
             // Check if dummy order has already been filled
-            if (oppOrder->GetCount() == 0)
+            if (oppOrder->GetCount() > 0)
             {
-                priceQueue->pop_front();
-                continue;
+                oppOrder->IncrementExecutionId();
+                MatchOrders(order, oppOrder);
             }
-            oppOrder->IncrementExecutionId();
-            MatchOrders(order, oppOrder);
             if (oppOrder->GetCount() == 0)
             {
                 oppOrder->SetCompleted();
@@ -189,16 +176,9 @@ template <Side side>
 void OrderBook::Cancel(std::shared_ptr<Order> order)
 {
     assert(order->GetSide() == side);
-    SyncInfo() << "[CANCEL WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
-               << std::endl;
     std::unique_lock<std::mutex> l(side == Side::BUY ? bids_lock : asks_lock);
     while (!order->GetActivated())
-    {
-        SyncInfo() << "[CANCEL] Order: " << order->GetOrderId() << ", GOIN G TO SLEEP\n";
         order->cv.wait(l);
-    }
-    SyncInfo() << "[CANCEL] Order: " << order->GetOrderId() << ", Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
-               << std::endl;
 
     std::shared_ptr<Price> priceQueue = GetPrice<side>(order->GetPrice());
     std::deque<std::shared_ptr<Order>>::iterator start;
@@ -224,45 +204,33 @@ void OrderBook::Cancel(std::shared_ptr<Order> order)
     priceQueue->erase(start);
 
     Output::OrderDeleted(order->GetOrderId(), cnt > 0, getCurrentTimestamp());
-    SyncInfo() << "[CANCEL RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
-               << std::endl;
 }
 
 void OrderBook::MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Order> resting)
 {
     unsigned int qty = std::min(incoming->GetCount(), resting->GetCount());
-    if (resting->GetCount() == incoming->GetCount())
-    {
-        incoming->Fill();
-        resting->Fill();
-    }
-    else if (resting->GetCount() > incoming->GetCount())
-    {
-        resting->Fill(incoming->GetCount());
-        incoming->Fill();
-    }
-    else
-    {
-        incoming->Fill(resting->GetCount());
-        resting->Fill();
-    }
+    incoming->Fill(qty);
+    resting->Fill(qty);
     Output::OrderExecuted(
         resting->GetOrderId(), incoming->GetOrderId(), resting->GetExecutionId(), resting->GetPrice(), qty, getCurrentTimestamp());
 }
 
-template <Side side>
-std::shared_ptr<Price> OrderBook::GetPrice(price_t price)
+template <typename T>
+std::shared_ptr<Price> GetOrAssign(std::map<price_t, std::shared_ptr<Price>, T> & map, price_t price)
 {
-    if constexpr (side == Side::BUY)
-    {
-        if (!bids.contains(price))
-            bids[price] = std::make_shared<Price>();
-        return bids[price];
-    }
-    else
-    {
-        if (!asks.contains(price))
-            asks[price] = std::make_shared<Price>();
-        return asks[price];
-    }
+    if (!map.contains(price))
+        map[price] = std::make_shared<Price>();
+    return map[price];
+}
+
+template <>
+std::shared_ptr<Price> OrderBook::GetPrice<Side::BUY>(price_t price)
+{
+    return GetOrAssign(bids, price);
+}
+
+template <>
+std::shared_ptr<Price> OrderBook::GetPrice<Side::SELL>(price_t price)
+{
+    return GetOrAssign(asks, price);
 }

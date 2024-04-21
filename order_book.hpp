@@ -18,7 +18,6 @@ inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
 
 typedef std::deque<std::shared_ptr<Order>> Price;
 
-// TODO: Check if bids_lock/asks_lock required when using AtomicMap
 class OrderBook
 {
 public:

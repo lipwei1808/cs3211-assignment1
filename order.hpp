@@ -43,8 +43,6 @@ public:
     bool GetCompleted() const { return completed; }
     void SetCompleted() { completed = true; }
 
-    void Fill() { Fill(count); }
-
     void Fill(unsigned int qty) { count = qty >= count ? 0 : count - qty; }
 
     void Activate()
