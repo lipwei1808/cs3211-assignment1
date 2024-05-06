@@ -88,7 +88,7 @@ void MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Order> resting
 }
 
 template <Side side, typename T, typename Comp>
-bool Match(Book<T> & book, std::shared_ptr<Order> order, std::unique_lock<std::mutex> & l, Comp & comp)
+bool CrossSpread(Book<T> & book, std::shared_ptr<Order> order, std::unique_lock<std::mutex> & l, Comp & comp)
 {
     typename Book<T>::iterator firstEl = book.begin();
     typename Book<T>::iterator lastEl = book.end();
@@ -151,7 +151,7 @@ bool OrderBook::Execute<Side::BUY>(std::shared_ptr<Order> order)
         return false;
 
     static std::greater<price_t> comp;
-    return Match<Side::BUY>(asks, order, l, comp);
+    return CrossSpread<Side::BUY>(asks, order, l, comp);
 }
 
 template <>
@@ -165,7 +165,7 @@ bool OrderBook::Execute<Side::SELL>(std::shared_ptr<Order> order)
         return false;
 
     static std::less<price_t> comp;
-    return Match<Side::SELL>(bids, order, l, comp);
+    return CrossSpread<Side::SELL>(bids, order, l, comp);
 }
 
 template <Side side>
