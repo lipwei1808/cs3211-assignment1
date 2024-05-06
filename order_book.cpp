@@ -87,8 +87,8 @@ void MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Order> resting
         resting->GetOrderId(), incoming->GetOrderId(), resting->GetExecutionId(), resting->GetPrice(), qty, getCurrentTimestamp());
 }
 
-template <Side side, typename T>
-bool Match(Book<T> book, std::shared_ptr<Order> order, std::unique_lock<std::mutex> & l)
+template <Side side, typename T, typename Comp>
+bool Match(Book<T> & book, std::shared_ptr<Order> order, std::unique_lock<std::mutex> & l, Comp & comp)
 {
     typename Book<T>::iterator firstEl = book.begin();
     typename Book<T>::iterator lastEl = book.end();
@@ -100,16 +100,8 @@ bool Match(Book<T> book, std::shared_ptr<Order> order, std::unique_lock<std::mut
         SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << ". Order Price: " << order->GetPrice()
                    << ", Order count: " << order->GetCount() << ", oppPrice: " << price << ", priceQueueSize: " << priceQueue->size()
                    << std::endl;
-        if constexpr (side == Side::BUY)
-        {
-            if (price > order->GetPrice())
-                return order->GetCount() == 0;
-        }
-        else
-        {
-            if (price < order->GetPrice())
-                return order->GetCount() == 0;
-        }
+        if (comp(price, order->GetPrice()))
+            return order->GetCount() == 0;
 
         // Iteratively match with all orders in this price queue.
         while (order->GetCount() > 0 && priceQueue->size())
@@ -158,7 +150,8 @@ bool OrderBook::Execute<Side::BUY>(std::shared_ptr<Order> order)
     if (asks.size() == 0)
         return false;
 
-    return Match<Side::BUY>(asks, order, l);
+    static std::greater<price_t> comp;
+    return Match<Side::BUY>(asks, order, l, comp);
 }
 
 template <>
@@ -171,7 +164,8 @@ bool OrderBook::Execute<Side::SELL>(std::shared_ptr<Order> order)
     if (bids.size() == 0)
         return false;
 
-    return Match<Side::SELL>(bids, order, l);
+    static std::less<price_t> comp;
+    return Match<Side::SELL>(bids, order, l, comp);
 }
 
 template <Side side>
