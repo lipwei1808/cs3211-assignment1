@@ -17,6 +17,8 @@ inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
 }
 
 typedef std::deque<std::shared_ptr<Order>> Price;
+template <typename T>
+using Book = std::map<price_t, std::shared_ptr<Price>, T>;
 
 class OrderBook
 {
@@ -37,10 +39,9 @@ private:
     std::shared_ptr<Price> GetPrice(price_t price);
     template <Side side>
     bool Execute(std::shared_ptr<Order> order);
-    void MatchOrders(std::shared_ptr<Order> o1, std::shared_ptr<Order> o2);
 
-    std::map<price_t, std::shared_ptr<Price>, std::greater<price_t>> bids;
-    std::map<price_t, std::shared_ptr<Price>> asks;
+    Book<std::greater<price_t>> bids;
+    Book<std::less<price_t>> asks;
 
     std::mutex order_book_lock;
     std::mutex bids_lock;

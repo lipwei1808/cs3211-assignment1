@@ -13,8 +13,6 @@ template void OrderBook::Handle<Side::BUY>(std::shared_ptr<Order> order);
 template void OrderBook::Handle<Side::SELL>(std::shared_ptr<Order> order);
 template void OrderBook::Add<Side::SELL>(std::shared_ptr<Order> order);
 template void OrderBook::Add<Side::BUY>(std::shared_ptr<Order> order);
-template bool OrderBook::Execute<Side::SELL>(std::shared_ptr<Order> order);
-template bool OrderBook::Execute<Side::BUY>(std::shared_ptr<Order> order);
 template void OrderBook::Cancel<Side::SELL>(std::shared_ptr<Order> order);
 template void OrderBook::Cancel<Side::BUY>(std::shared_ptr<Order> order);
 
@@ -80,42 +78,20 @@ void OrderBook::Add(std::shared_ptr<Order> order)
     SyncInfo() << "[ADD RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!" << std::endl;
 }
 
-/**
- * @param order active buy order to execute.
- * @return if buy order has been fully completed.
- */
-template <Side side>
-bool OrderBook::Execute(std::shared_ptr<Order> order)
+void MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Order> resting)
 {
-    assert(order->GetSide() == side);
-    assert(order->GetActivated() == false);
-    std::unique_lock<std::mutex> l(side == Side::BUY ? asks_lock : bids_lock);
+    unsigned int qty = std::min(incoming->GetCount(), resting->GetCount());
+    incoming->Fill(qty);
+    resting->Fill(qty);
+    Output::OrderExecuted(
+        resting->GetOrderId(), incoming->GetOrderId(), resting->GetExecutionId(), resting->GetPrice(), qty, getCurrentTimestamp());
+}
 
-    // Check if any sell orders
-    if constexpr (side == Side::BUY)
-    {
-        if (asks.size() == 0)
-            return false;
-    }
-    else
-    {
-        if (bids.size() == 0)
-            return false;
-    }
-    // Check if lowest sell order can match the buy
-    auto firstEl = ([&]() {
-        if constexpr (side == Side::BUY) 
-        return asks.begin();
-        else 
-        return bids.begin(); 
-    })();
-    auto lastEl = ([&]() {
-        if constexpr (side == Side::BUY) 
-        return asks.end();
-        else 
-        return bids.end(); 
-    })();
-
+template <Side side, typename T>
+bool Match(Book<T> book, std::shared_ptr<Order> order, std::unique_lock<std::mutex> & l)
+{
+    typename Book<T>::iterator firstEl = book.begin();
+    typename Book<T>::iterator lastEl = book.end();
     while (firstEl != lastEl)
     {
         price_t price = firstEl->first;
@@ -172,6 +148,32 @@ bool OrderBook::Execute(std::shared_ptr<Order> order)
     return order->GetCount() == 0;
 }
 
+template <>
+bool OrderBook::Execute<Side::BUY>(std::shared_ptr<Order> order)
+{
+    assert(order->GetSide() == Side::BUY);
+    assert(order->GetActivated() == false);
+    std::unique_lock<std::mutex> l(asks_lock);
+
+    if (asks.size() == 0)
+        return false;
+
+    return Match<Side::BUY>(asks, order, l);
+}
+
+template <>
+bool OrderBook::Execute<Side::SELL>(std::shared_ptr<Order> order)
+{
+    assert(order->GetSide() == Side::SELL);
+    assert(order->GetActivated() == false);
+    std::unique_lock<std::mutex> l(bids_lock);
+
+    if (bids.size() == 0)
+        return false;
+
+    return Match<Side::SELL>(bids, order, l);
+}
+
 template <Side side>
 void OrderBook::Cancel(std::shared_ptr<Order> order)
 {
@@ -206,14 +208,6 @@ void OrderBook::Cancel(std::shared_ptr<Order> order)
     Output::OrderDeleted(order->GetOrderId(), cnt > 0, getCurrentTimestamp());
 }
 
-void OrderBook::MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Order> resting)
-{
-    unsigned int qty = std::min(incoming->GetCount(), resting->GetCount());
-    incoming->Fill(qty);
-    resting->Fill(qty);
-    Output::OrderExecuted(
-        resting->GetOrderId(), incoming->GetOrderId(), resting->GetExecutionId(), resting->GetPrice(), qty, getCurrentTimestamp());
-}
 
 template <typename T>
 std::shared_ptr<Price> GetOrAssign(std::map<price_t, std::shared_ptr<Price>, T> & map, price_t price)
