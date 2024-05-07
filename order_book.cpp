@@ -47,15 +47,15 @@ void MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Order> resting
         resting->GetOrderId(), incoming->GetOrderId(), resting->GetExecutionId(), resting->GetPrice(), qty, getCurrentTimestamp());
 }
 
-template <typename T, typename Comp>
-bool CrossSpread(Book<T> & book, std::shared_ptr<Order> order, std::unique_lock<std::mutex> & l, Comp & comp)
+template <typename T>
+bool CrossSpread(Book<T> & book, std::shared_ptr<Order> order, std::unique_lock<std::mutex> & l)
 {
+    if (book.size() == 0)
+        return false;
+
     for (auto & [price, priceQueue] : book)
     {
-        SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << ". Order Price: " << order->GetPrice()
-                   << ", Order count: " << order->GetCount() << ", oppPrice: " << price << ", priceQueueSize: " << priceQueue->size()
-                   << std::endl;
-        if (comp(price, order->GetPrice()))
+        if (!order->CanMatch(price))
             return order->GetCount() == 0;
 
         // Iteratively match with all orders in this price queue.
@@ -95,26 +95,17 @@ bool CrossSpread(Book<T> & book, std::shared_ptr<Order> order, std::unique_lock<
 bool OrderBook::Match(std::shared_ptr<Order> order)
 {
     assert(order->GetActivated() == false);
-    Side side = order->GetSide();
-    std::unique_lock<std::mutex> l(side == Side::BUY ? asks_lock : bids_lock);
+    std::unique_lock<std::mutex> l(order->GetSide() == Side::BUY ? asks_lock : bids_lock);
 
-    if (side == Side::BUY && asks.size() == 0)
-        return false;
-
-    if (side == Side::SELL && bids.size() == 0)
-        return false;
-
-    static std::greater<price_t> ge;
-    static std::less<price_t> le;
-    if (side == Side::BUY)
-        return CrossSpread(asks, order, l, ge);
+    if (order->GetSide() == Side::BUY)
+        return CrossSpread(asks, order, l);
     else
-        return CrossSpread(bids, order, l, le);
+        return CrossSpread(bids, order, l);
 }
 
 void OrderBook::Execute(std::shared_ptr<Order> order)
 {
-    // Execute
+    // Perform CrossSpread and match orders to execute
     bool filled = Match(order);
 
     std::unique_lock<std::mutex> lo(order->GetSide() == Side::BUY ? bids_lock : asks_lock);
@@ -127,7 +118,6 @@ void OrderBook::Execute(std::shared_ptr<Order> order)
             order->GetCount(),
             order->GetSide() == Side::SELL,
             getCurrentTimestamp());
-
     // Add
     order->Activate();
 }
@@ -164,7 +154,7 @@ void OrderBook::Cancel(std::shared_ptr<Order> order)
     Output::OrderDeleted(order->GetOrderId(), cnt > 0, getCurrentTimestamp());
 }
 
-
+// TODO: Refactor into method in Book class
 template <typename T>
 std::shared_ptr<Price> GetOrAssign(std::map<price_t, std::shared_ptr<Price>, T> & map, price_t price)
 {
