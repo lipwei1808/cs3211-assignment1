@@ -22,30 +22,21 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
     assert(order->GetSide() == side);
     assert(order->GetActivated() == false);
 
+    // Set arrival timestamp for order and add dummy node into book
     {
-        SyncInfo() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ", for BOTH LOCKS\n";
         std::unique_lock<std::mutex> l(order_book_lock);
-        SyncInfo() << "[HANDLE] Order: " << order->GetOrderId() << ",  Acquired BOTH LOCKS\n";
+
         // Get timestamp for order
         order->SetTimestamp(getCurrentTimestamp());
 
         // Insert dummy node into order
         Add<side>(order);
-
-        SyncInfo() << "[HANDLE RELEASE] Order: " << order->GetOrderId() << ",  BOTH LOCKS\n";
     }
 
     // Execute
     bool filled = Execute<side>(order);
-    SyncInfo() << "[HANDLE WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
-               << std::endl;
-    std::unique_lock<std::mutex> lo;
-    if constexpr (side == Side::BUY)
-        lo = std::unique_lock<std::mutex>(bids_lock);
-    else
-        lo = std::unique_lock<std::mutex>(asks_lock);
-    SyncInfo() << "[HANDLE] Order: " << order->GetOrderId() << ",  Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
-               << std::endl;
+    std::unique_lock<std::mutex> lo(side == Side::BUY ? bids_lock : asks_lock);
+
     if (!filled)
         Output::OrderAdded(
             order->GetOrderId(),
@@ -57,22 +48,14 @@ void OrderBook::Handle(std::shared_ptr<Order> order)
 
     // Add
     order->Activate();
-    SyncInfo() << "[***HANDLE RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
-               << std::endl;
 }
 
 template <Side side>
 void OrderBook::Add(std::shared_ptr<Order> order)
 {
     assert(order->GetSide() == side);
-    SyncInfo() << "[ADD WAITING] Order: " << order->GetOrderId() << ",  for" << (side == Side::BUY ? "BUY" : "SELL") << " lock!"
-               << std::endl;
-    std::unique_lock<std::mutex> l;
-    if constexpr (side == Side::BUY)
-        l = std::unique_lock<std::mutex>(bids_lock);
-    else
-        l = std::unique_lock<std::mutex>(asks_lock);
-    SyncInfo() << "[ADD] Order: " << order->GetOrderId() << ", Acquire " << (side == Side::BUY ? "BUY" : "SELL") << " lock!" << std::endl;
+    std::unique_lock<std::mutex> l(side == Side::BUY ? bids_lock : asks_lock);
+
     std::shared_ptr<Price> p = GetPrice<side>(order->GetPrice());
     p->push_back(order);
     SyncInfo() << "[ADD RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!" << std::endl;
@@ -90,13 +73,8 @@ void MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Order> resting
 template <Side side, typename T, typename Comp>
 bool CrossSpread(Book<T> & book, std::shared_ptr<Order> order, std::unique_lock<std::mutex> & l, Comp & comp)
 {
-    typename Book<T>::iterator firstEl = book.begin();
-    typename Book<T>::iterator lastEl = book.end();
-    while (firstEl != lastEl)
+    for (auto & [price, priceQueue] : book)
     {
-        price_t price = firstEl->first;
-        std::shared_ptr<Price> priceQueue = firstEl->second;
-
         SyncInfo() << "[EXECUTE] Order: " << order->GetOrderId() << ". Order Price: " << order->GetPrice()
                    << ", Order count: " << order->GetCount() << ", oppPrice: " << price << ", priceQueueSize: " << priceQueue->size()
                    << std::endl;
@@ -133,7 +111,6 @@ bool CrossSpread(Book<T> & book, std::shared_ptr<Order> order, std::unique_lock<
                 priceQueue->pop_front();
             }
         }
-        firstEl++;
     }
     SyncInfo() << "[EXECUTE RELEASE] Order: " << order->GetOrderId() << ",  " << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
                << std::endl;
@@ -177,7 +154,7 @@ void OrderBook::Cancel(std::shared_ptr<Order> order)
         order->cv.wait(l);
 
     std::shared_ptr<Price> priceQueue = GetPrice<side>(order->GetPrice());
-    std::deque<std::shared_ptr<Order>>::iterator start;
+    Price::iterator start;
     for (start = priceQueue->begin(); start != priceQueue->end(); start++)
         if ((*start)->GetOrderId() == order->GetOrderId())
             break;
