@@ -17,31 +17,28 @@ inline std::chrono::microseconds::rep getCurrentTimestamp() noexcept
 }
 
 typedef std::deque<std::shared_ptr<Order>> Price;
+template <typename T>
+using Book = std::map<price_t, std::shared_ptr<Price>, T>;
 
-// TODO: Check if bids_lock/asks_lock required when using AtomicMap
 class OrderBook
 {
 public:
     OrderBook() = default;
-    template <Side side>
     void Handle(std::shared_ptr<Order> order);
-    template <Side side>
     void Cancel(std::shared_ptr<Order> order);
 
     std::mutex buy;
     std::mutex sell;
 
 private:
-    template <Side side>
     void Add(std::shared_ptr<Order> order);
-    template <Side side>
-    std::shared_ptr<Price> GetPrice(price_t price);
-    template <Side side>
-    bool Execute(std::shared_ptr<Order> order);
-    void MatchOrders(std::shared_ptr<Order> o1, std::shared_ptr<Order> o2);
+    std::shared_ptr<Price> GetPrice(Side side, price_t price);
+    bool Match(std::shared_ptr<Order> order);
+    void Prepare(std::shared_ptr<Order> order);
+    void Execute(std::shared_ptr<Order> order);
 
-    std::map<price_t, std::shared_ptr<Price>, std::greater<price_t>> bids;
-    std::map<price_t, std::shared_ptr<Price>> asks;
+    Book<std::greater<price_t>> bids;
+    Book<std::less<price_t>> asks;
 
     std::mutex order_book_lock;
     std::mutex bids_lock;

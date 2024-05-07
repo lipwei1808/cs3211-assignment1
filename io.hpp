@@ -3,7 +3,7 @@
 
 #pragma once
 
-// #define DEBUG
+#define DEBUG
 #define UNUSED(x) (void)(x)
 
 #include <cstdint>

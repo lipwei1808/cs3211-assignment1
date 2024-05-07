@@ -48,10 +48,7 @@ void Engine::connection_thread(ClientConnection connection)
                 }
                 std::shared_ptr<Order> order = orders[input.order_id];
                 std::shared_ptr<OrderBook> ob = GetOrderBook(order->GetInstrumentId());
-                if (order->GetSide() == Side::BUY)
-                    ob->Cancel<Side::BUY>(order);
-                else
-                    ob->Cancel<Side::SELL>(order);
+                ob->Cancel(order);
                 break;
             }
 
@@ -60,24 +57,13 @@ void Engine::connection_thread(ClientConnection connection)
                            << input.price << " ID: " << input.order_id << std::endl;
                 // Remember to take timestamp at the appropriate time, or compute
                 // an appropriate timestamp!
-                std::shared_ptr<Order> order = std::make_shared<Order>(
+                std::shared_ptr<Order> order = Order::from(
                     input.order_id, input.instrument, input.price, input.count, input.type == input_sell ? Side::SELL : Side::BUY, 0);
                 orders.insert({order->GetOrderId(), order});
                 std::shared_ptr<OrderBook> ob = GetOrderBook(order->GetInstrumentId());
-                if (order->GetSide() == Side::BUY)
-                {
-                    SyncInfo() << "WAITING TO ENTER ID: " << input.order_id << std::endl;
-                    std::unique_lock<std::mutex> l(ob->buy);
-                    SyncInfo() << "ENTERING ID: " << input.order_id << std::endl;
-                    ob->Handle<Side::BUY>(order);
-                }
-                else
-                {
-                    SyncInfo() << "WAITING TO ENTER ID: " << input.order_id << std::endl;
-                    std::unique_lock<std::mutex> l(ob->sell);
-                    SyncInfo() << "ENTERING ID: " << input.order_id << std::endl;
-                    ob->Handle<Side::SELL>(order);
-                }
+
+                std::unique_lock<std::mutex> l(order->GetSide() == Side::BUY ? ob->buy : ob->sell);
+                ob->Handle(order);
                 break;
             }
         }

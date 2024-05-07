@@ -18,13 +18,14 @@ enum class Side
     SELL
 };
 
+
 class Order
 {
 public:
-    Order(
-        unsigned int order_id,
-        std::string instrument,
-        unsigned int price,
+    static std::shared_ptr<Order> from(
+        order_id_t order_id,
+        instrument_id_t instrument,
+        price_t price,
         unsigned int count,
         Side side,
         std::chrono::microseconds::rep timestamp);
@@ -34,18 +35,16 @@ public:
     instrument_id_t GetInstrumentId() const { return instrument; }
     price_t GetPrice() const { return price; }
     unsigned int GetCount() const { return count; }
-    Side GetSide() const { return side; }
     std::chrono::microseconds::rep GetTimestamp() { return timestamp; }
-
     void SetTimestamp(std::chrono::microseconds::rep tm) { timestamp = tm; }
-
     bool GetActivated() { return activated; }
     bool GetCompleted() const { return completed; }
     void SetCompleted() { completed = true; }
-
-    void Fill() { Fill(count); }
-
     void Fill(unsigned int qty) { count = qty >= count ? 0 : count - qty; }
+
+    virtual Side GetSide() const = 0;
+    virtual bool CanMatch(price_t price) = 0;
+    virtual ~Order() = default;
 
     void Activate()
     {
@@ -55,16 +54,42 @@ public:
 
     std::condition_variable cv;
 
+protected:
+    Order(order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count, std::chrono::microseconds::rep timestamp);
+
 private:
     order_id_t order_id;
     execution_id_t execution_id;
     instrument_id_t instrument;
     price_t price;
     unsigned int count;
-    Side side;
     std::chrono::microseconds::rep timestamp;
     bool activated;
     bool completed;
+};
+
+class BuyOrder : public Order
+{
+public:
+    BuyOrder(order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count, std::chrono::microseconds::rep timestamp)
+        : Order(order_id, instrument, price, count, timestamp)
+    {
+    }
+    virtual Side GetSide() const { return Side::BUY; }
+    virtual bool CanMatch(price_t price) { return GetPrice() >= price; }
+    virtual ~BuyOrder() = default;
+};
+class SellOrder : public Order
+{
+public:
+    SellOrder(order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count, std::chrono::microseconds::rep timestamp)
+        : Order(order_id, instrument, price, count, timestamp)
+    {
+    }
+
+    virtual Side GetSide() const { return Side::SELL; }
+    virtual bool CanMatch(price_t price) { return GetPrice() <= price; }
+    virtual ~SellOrder() = default;
 };
 
 #endif
