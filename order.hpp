@@ -22,9 +22,9 @@ class Order
 {
 public:
     Order(
-        unsigned int order_id,
-        std::string instrument,
-        unsigned int price,
+        order_id_t order_id,
+        instrument_id_t instrument,
+        price_t price,
         unsigned int count,
         Side side,
         std::chrono::microseconds::rep timestamp);

@@ -2,12 +2,7 @@
 #include "order.hpp"
 
 Order::Order(
-    unsigned int order_id,
-    std::string instrument,
-    unsigned int price,
-    unsigned int count,
-    Side side,
-    std::chrono::microseconds::rep timestamp)
+    order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count, Side side, std::chrono::microseconds::rep timestamp)
     : order_id(order_id)
     , execution_id(0)
     , instrument(instrument)

@@ -9,56 +9,33 @@
 #include "order.hpp"
 #include "order_book.hpp"
 
-template void OrderBook::Handle<Side::BUY>(std::shared_ptr<Order> order);
-template void OrderBook::Handle<Side::SELL>(std::shared_ptr<Order> order);
-template void OrderBook::Add<Side::SELL>(std::shared_ptr<Order> order);
-template void OrderBook::Add<Side::BUY>(std::shared_ptr<Order> order);
-template void OrderBook::Cancel<Side::SELL>(std::shared_ptr<Order> order);
-template void OrderBook::Cancel<Side::BUY>(std::shared_ptr<Order> order);
-
-template <Side side>
 void OrderBook::Handle(std::shared_ptr<Order> order)
 {
-    assert(order->GetSide() == side);
     assert(order->GetActivated() == false);
 
-    // Set arrival timestamp for order and add dummy node into book
-    {
-        std::unique_lock<std::mutex> l(order_book_lock);
+    Prepare(order);
 
-        // Get timestamp for order
-        order->SetTimestamp(getCurrentTimestamp());
-
-        // Insert dummy node into order
-        Add<side>(order);
-    }
-
-    // Execute
-    bool filled = Execute<side>(order);
-    std::unique_lock<std::mutex> lo(side == Side::BUY ? bids_lock : asks_lock);
-
-    if (!filled)
-        Output::OrderAdded(
-            order->GetOrderId(),
-            order->GetInstrumentId().c_str(),
-            order->GetPrice(),
-            order->GetCount(),
-            side == Side::SELL,
-            getCurrentTimestamp());
-
-    // Add
-    order->Activate();
+    Execute(order);
 }
 
-template <Side side>
+// Set arrival timestamp for order and add dummy node into book
+void OrderBook::Prepare(std::shared_ptr<Order> order)
+{
+    std::unique_lock<std::mutex> l(order_book_lock);
+
+    // Get timestamp for order
+    order->SetTimestamp(getCurrentTimestamp());
+
+    // Insert dummy node into order
+    Add(order);
+}
+
+
 void OrderBook::Add(std::shared_ptr<Order> order)
 {
-    assert(order->GetSide() == side);
-    std::unique_lock<std::mutex> l(side == Side::BUY ? bids_lock : asks_lock);
-
-    std::shared_ptr<Price> p = GetPrice<side>(order->GetPrice());
+    std::unique_lock<std::mutex> l(order->GetSide() == Side::BUY ? bids_lock : asks_lock);
+    std::shared_ptr<Price> p = GetPrice(order->GetSide(), order->GetPrice());
     p->push_back(order);
-    SyncInfo() << "[ADD RELEASE] Order: " << order->GetOrderId() << ", " << (side == Side::BUY ? "BUY" : "SELL") << " lock!" << std::endl;
 }
 
 void MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Order> resting)
@@ -70,7 +47,7 @@ void MatchOrders(std::shared_ptr<Order> incoming, std::shared_ptr<Order> resting
         resting->GetOrderId(), incoming->GetOrderId(), resting->GetExecutionId(), resting->GetPrice(), qty, getCurrentTimestamp());
 }
 
-template <Side side, typename T, typename Comp>
+template <typename T, typename Comp>
 bool CrossSpread(Book<T> & book, std::shared_ptr<Order> order, std::unique_lock<std::mutex> & l, Comp & comp)
 {
     for (auto & [price, priceQueue] : book)
@@ -112,48 +89,56 @@ bool CrossSpread(Book<T> & book, std::shared_ptr<Order> order, std::unique_lock<
             }
         }
     }
-    SyncInfo() << "[EXECUTE RELEASE] Order: " << order->GetOrderId() << ",  " << (side == Side::BUY ? "SELL" : "BUY") << " lock!"
-               << std::endl;
     return order->GetCount() == 0;
 }
 
-template <>
-bool OrderBook::Execute<Side::BUY>(std::shared_ptr<Order> order)
+bool OrderBook::Match(std::shared_ptr<Order> order)
 {
-    assert(order->GetSide() == Side::BUY);
     assert(order->GetActivated() == false);
-    std::unique_lock<std::mutex> l(asks_lock);
+    Side side = order->GetSide();
+    std::unique_lock<std::mutex> l(side == Side::BUY ? asks_lock : bids_lock);
 
-    if (asks.size() == 0)
+    if (side == Side::BUY && asks.size() == 0)
         return false;
 
-    static std::greater<price_t> comp;
-    return CrossSpread<Side::BUY>(asks, order, l, comp);
-}
-
-template <>
-bool OrderBook::Execute<Side::SELL>(std::shared_ptr<Order> order)
-{
-    assert(order->GetSide() == Side::SELL);
-    assert(order->GetActivated() == false);
-    std::unique_lock<std::mutex> l(bids_lock);
-
-    if (bids.size() == 0)
+    if (side == Side::SELL && bids.size() == 0)
         return false;
 
-    static std::less<price_t> comp;
-    return CrossSpread<Side::SELL>(bids, order, l, comp);
+    static std::greater<price_t> ge;
+    static std::less<price_t> le;
+    if (side == Side::BUY)
+        return CrossSpread(asks, order, l, ge);
+    else
+        return CrossSpread(bids, order, l, le);
 }
 
-template <Side side>
+void OrderBook::Execute(std::shared_ptr<Order> order)
+{
+    // Execute
+    bool filled = Match(order);
+
+    std::unique_lock<std::mutex> lo(order->GetSide() == Side::BUY ? bids_lock : asks_lock);
+
+    if (!filled)
+        Output::OrderAdded(
+            order->GetOrderId(),
+            order->GetInstrumentId().c_str(),
+            order->GetPrice(),
+            order->GetCount(),
+            order->GetSide() == Side::SELL,
+            getCurrentTimestamp());
+
+    // Add
+    order->Activate();
+}
+
 void OrderBook::Cancel(std::shared_ptr<Order> order)
 {
-    assert(order->GetSide() == side);
-    std::unique_lock<std::mutex> l(side == Side::BUY ? bids_lock : asks_lock);
+    std::unique_lock<std::mutex> l(order->GetSide() == Side::BUY ? bids_lock : asks_lock);
     while (!order->GetActivated())
         order->cv.wait(l);
 
-    std::shared_ptr<Price> priceQueue = GetPrice<side>(order->GetPrice());
+    std::shared_ptr<Price> priceQueue = GetPrice(order->GetSide(), order->GetPrice());
     Price::iterator start;
     for (start = priceQueue->begin(); start != priceQueue->end(); start++)
         if ((*start)->GetOrderId() == order->GetOrderId())
@@ -188,14 +173,10 @@ std::shared_ptr<Price> GetOrAssign(std::map<price_t, std::shared_ptr<Price>, T> 
     return map[price];
 }
 
-template <>
-std::shared_ptr<Price> OrderBook::GetPrice<Side::BUY>(price_t price)
+std::shared_ptr<Price> OrderBook::GetPrice(Side side, price_t price)
 {
-    return GetOrAssign(bids, price);
-}
-
-template <>
-std::shared_ptr<Price> OrderBook::GetPrice<Side::SELL>(price_t price)
-{
-    return GetOrAssign(asks, price);
+    if (side == Side::BUY)
+        return GetOrAssign(bids, price);
+    else
+        return GetOrAssign(asks, price);
 }

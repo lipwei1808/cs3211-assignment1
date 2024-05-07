@@ -24,21 +24,18 @@ class OrderBook
 {
 public:
     OrderBook() = default;
-    template <Side side>
     void Handle(std::shared_ptr<Order> order);
-    template <Side side>
     void Cancel(std::shared_ptr<Order> order);
 
     std::mutex buy;
     std::mutex sell;
 
 private:
-    template <Side side>
     void Add(std::shared_ptr<Order> order);
-    template <Side side>
-    std::shared_ptr<Price> GetPrice(price_t price);
-    template <Side side>
-    bool Execute(std::shared_ptr<Order> order);
+    std::shared_ptr<Price> GetPrice(Side side, price_t price);
+    bool Match(std::shared_ptr<Order> order);
+    void Prepare(std::shared_ptr<Order> order);
+    void Execute(std::shared_ptr<Order> order);
 
     Book<std::greater<price_t>> bids;
     Book<std::less<price_t>> asks;
