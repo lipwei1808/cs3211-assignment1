@@ -1,13 +1,3 @@
-#include <algorithm>
-#include <deque>
-#include <iostream>
-#include <memory>
-#include <mutex>
-#include <string>
-#include <assert.h>
-
-#include "book.hpp"
-#include "order.hpp"
 #include "order_book.hpp"
 
 void OrderBook::Handle(std::shared_ptr<Order> order)
@@ -33,37 +23,31 @@ void OrderBook::Prepare(std::shared_ptr<Order> order)
 
 void OrderBook::Add(std::shared_ptr<Order> order)
 {
-    if (order->GetSide() == Side::BUY)
-        bids.Add(order);
-    else
-        asks.Add(order);
-}
-
-bool OrderBook::Match(std::shared_ptr<Order> order)
-{
-    assert(order->GetActivated() == false);
-
-    if (order->GetSide() == Side::BUY)
-        return asks.CrossSpread(order);
-    else
-        return bids.CrossSpread(order);
+    GetBook(order->GetSide())->Add(order);
 }
 
 void OrderBook::Execute(std::shared_ptr<Order> order)
 {
     // Perform CrossSpread and match orders to execute
-    bool filled = Match(order);
+    bool filled = GetOtherBook(order->GetSide())->CrossSpread(order);
 
-    if (order->GetSide() == Side::BUY)
-        bids.AfterExecute(order, filled);
-    else
-        asks.AfterExecute(order, filled);
+    GetBook(order->GetSide())->AfterExecute(order, filled);
 }
 
 void OrderBook::Cancel(std::shared_ptr<Order> order)
 {
-    if (order->GetSide() == Side::BUY)
-        bids.Cancel(order);
+    GetBook(order->GetSide())->Cancel(order);
+}
+
+BaseBook * OrderBook::GetBook(Side side)
+{
+    if (side == Side::BUY)
+        return &bids;
     else
-        asks.Cancel(order);
+        return &asks;
+}
+
+BaseBook * OrderBook::GetOtherBook(Side side)
+{
+    return GetBook(side == Side::BUY ? Side::SELL : Side::BUY);
 }

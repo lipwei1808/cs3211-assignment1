@@ -75,8 +75,8 @@ public:
         : Order(order_id, instrument, price, count, timestamp)
     {
     }
-    virtual Side GetSide() const { return Side::BUY; }
-    virtual bool CanMatch(price_t price) { return GetPrice() >= price; }
+    virtual Side GetSide() const override { return Side::BUY; }
+    virtual bool CanMatch(price_t price) override { return GetPrice() >= price; }
     virtual ~BuyOrder() = default;
 };
 class SellOrder : public Order
@@ -87,8 +87,8 @@ public:
     {
     }
 
-    virtual Side GetSide() const { return Side::SELL; }
-    virtual bool CanMatch(price_t price) { return GetPrice() <= price; }
+    virtual Side GetSide() const override { return Side::SELL; }
+    virtual bool CanMatch(price_t price) override { return GetPrice() <= price; }
     virtual ~SellOrder() = default;
 };
 

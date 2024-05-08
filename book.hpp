@@ -26,24 +26,31 @@ typedef std::deque<std::shared_ptr<Order>> Price;
 template <typename T>
 using BookT = std::map<price_t, std::shared_ptr<Price>, T>;
 
-template <typename T>
-class Book
+class BaseBook
 {
 public:
-    size_t Size() const { return map.size(); }
-    typename BookT<T>::iterator begin() { return map.begin(); }
-    typename BookT<T>::iterator end() { return map.end(); }
-    void Add(std::shared_ptr<Order> order)
+    virtual void Add(std::shared_ptr<Order> order) = 0;
+    virtual void Cancel(std::shared_ptr<Order> order) = 0;
+    virtual void AfterExecute(std::shared_ptr<Order> order, bool filled) = 0;
+    virtual bool CrossSpread(std::shared_ptr<Order> order) = 0;
+    virtual ~BaseBook() = default;
+};
+
+template <typename T>
+class Book : public BaseBook
+{
+public:
+    virtual void Add(std::shared_ptr<Order> order) override
     {
         std::unique_lock<std::mutex> l(mutex);
         std::shared_ptr<Price> p = GetOrAssign(order->GetPrice());
         p->push_back(order);
     }
 
-    bool CrossSpread(std::shared_ptr<Order> order)
+    virtual bool CrossSpread(std::shared_ptr<Order> order) override
     {
         std::unique_lock<std::mutex> l(mutex);
-        if (Size() == 0)
+        if (map.size() == 0)
             return false;
 
         for (auto & [price, priceQueue] : map)
@@ -85,7 +92,7 @@ public:
         return order->GetCount() == 0;
     }
 
-    void Cancel(std::shared_ptr<Order> order)
+    virtual void Cancel(std::shared_ptr<Order> order) override
     {
         std::unique_lock<std::mutex> l(mutex);
         while (!order->GetActivated())
@@ -117,7 +124,7 @@ public:
         Output::OrderDeleted(order->GetOrderId(), cnt > 0, getCurrentTimestamp());
     }
 
-    void AfterExecute(std::shared_ptr<Order> order, bool filled)
+    virtual void AfterExecute(std::shared_ptr<Order> order, bool filled) override
     {
         std::unique_lock<std::mutex> l(mutex);
 
@@ -132,7 +139,9 @@ public:
         // Add
         order->Activate();
     }
+    virtual ~Book() = default;
 
+private:
     std::shared_ptr<Price> GetOrAssign(price_t price)
     {
         if (!map.contains(price))

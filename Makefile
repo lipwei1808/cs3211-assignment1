@@ -8,8 +8,8 @@ CXXFLAGS := $(CXX_TEST_FLAGS) -Werror
 BUILDDIR = build
 BUILD_TEST_DIR = build/unit_tests
 
-SRCS = main.cpp engine.cpp io.cpp order.cpp order_book.cpp book.cpp
-TEST_SRCS = atomic_map_test.cpp order_book_test.cpp
+SRCS = main.cpp engine.cpp io.cpp order.cpp order_book.cpp
+TEST_SRCS = atomic_map_test.cpp
 
 all: engine client test mygrader
 
