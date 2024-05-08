@@ -9,10 +9,19 @@
 #include "book.hpp"
 #include "order.hpp"
 
+/**
+ * Represents the OrderBook encapsulating both the Buy and Sell side.
+*/
 class OrderBook
 {
 public:
     OrderBook() = default;
+
+    /**
+     * Handles an order of any side by attempting to execute it
+     * with current resting orders. Else, adds the order to the 
+     * respective book.
+    */
     void Handle(std::shared_ptr<Order> order);
     void Cancel(std::shared_ptr<Order> order);
 
@@ -20,8 +29,12 @@ public:
     std::mutex sell;
 
 private:
-    void Add(std::shared_ptr<Order> order);
+    /**
+     * Prepares the order to be handled by attaching the timestamp
+     * and adding dummy node into heap.
+    */
     void Prepare(std::shared_ptr<Order> order);
+    void Add(std::shared_ptr<Order> order);
     void Execute(std::shared_ptr<Order> order);
     BaseBook * GetBook(Side side);
     BaseBook * GetOtherBook(Side side);

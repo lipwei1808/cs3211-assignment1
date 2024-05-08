@@ -18,17 +18,16 @@ enum class Side
     SELL
 };
 
-
+/**
+ * Represents a Buy or Sell Order.
+*/
 class Order
 {
 public:
-    static std::shared_ptr<Order> from(
-        order_id_t order_id,
-        instrument_id_t instrument,
-        price_t price,
-        unsigned int count,
-        Side side,
-        std::chrono::microseconds::rep timestamp);
+    /**
+     * Factory method to create an Order based on the side.
+    */
+    static std::shared_ptr<Order> from(order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count, Side side);
     order_id_t GetOrderId() const { return order_id; }
     execution_id_t GetExecutionId() const { return execution_id; }
     void IncrementExecutionId() { execution_id++; }
@@ -55,7 +54,7 @@ public:
     std::condition_variable cv;
 
 protected:
-    Order(order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count, std::chrono::microseconds::rep timestamp);
+    Order(order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count);
 
 private:
     order_id_t order_id;
@@ -71,8 +70,7 @@ private:
 class BuyOrder : public Order
 {
 public:
-    BuyOrder(order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count, std::chrono::microseconds::rep timestamp)
-        : Order(order_id, instrument, price, count, timestamp)
+    BuyOrder(order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count) : Order(order_id, instrument, price, count)
     {
     }
     virtual Side GetSide() const override { return Side::BUY; }
@@ -82,8 +80,8 @@ public:
 class SellOrder : public Order
 {
 public:
-    SellOrder(order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count, std::chrono::microseconds::rep timestamp)
-        : Order(order_id, instrument, price, count, timestamp)
+    SellOrder(order_id_t order_id, instrument_id_t instrument, price_t price, unsigned int count)
+        : Order(order_id, instrument, price, count)
     {
     }
 

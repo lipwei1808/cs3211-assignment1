@@ -26,6 +26,11 @@ typedef std::deque<std::shared_ptr<Order>> Price;
 template <typename T>
 using BookT = std::map<price_t, std::shared_ptr<Price>, T>;
 
+/**
+ * Base class of Book.
+ * 
+ * Defines the interface of the Book class.
+*/
 class BaseBook
 {
 public:
@@ -36,6 +41,9 @@ public:
     virtual ~BaseBook() = default;
 };
 
+/**
+ * Represents a particular Side of the OrderBook (Buy or Sell side).
+*/
 template <typename T>
 class Book : public BaseBook
 {
@@ -47,6 +55,13 @@ public:
         p->push_back(order);
     }
 
+    /**
+     * Performs cross spreading of the order price and the current top 
+     * of the heap.
+     * 
+     * @param order Order to be matched with the current book.
+     * @return the successful matching of the entire order.
+    */
     virtual bool CrossSpread(std::shared_ptr<Order> order) override
     {
         std::unique_lock<std::mutex> l(mutex);
@@ -124,6 +139,14 @@ public:
         Output::OrderDeleted(order->GetOrderId(), cnt > 0, getCurrentTimestamp());
     }
 
+    /**
+     * Handles the remaining unfilled quantity of the order.
+     * 
+     * Adds the remaining order to the heap if any.
+     * 
+     * @param order The order to be added into the current book.
+     * @param filled Whether the order has been fully filled.
+    */
     virtual void AfterExecute(std::shared_ptr<Order> order, bool filled) override
     {
         std::unique_lock<std::mutex> l(mutex);

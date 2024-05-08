@@ -1,4 +1,3 @@
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -39,8 +38,7 @@ void Engine::connection_thread(ClientConnection connection)
             case input_cancel: {
                 SyncCerr{} << "Got cancel: ID: " << input.order_id << std::endl;
 
-                // Remember to take timestamp at the appropriate time, or compute
-                // an appropriate timestamp!
+                // Checks if the order has been added by the current client before.
                 if (orders.find(input.order_id) == orders.end())
                 {
                     Output::OrderDeleted(input.order_id, false, getCurrentTimestamp());
@@ -55,10 +53,9 @@ void Engine::connection_thread(ClientConnection connection)
             default: {
                 SyncCerr{} << "Got order: " << static_cast<char>(input.type) << " " << input.instrument << " x " << input.count << " @ "
                            << input.price << " ID: " << input.order_id << std::endl;
-                // Remember to take timestamp at the appropriate time, or compute
-                // an appropriate timestamp!
+
                 std::shared_ptr<Order> order = Order::from(
-                    input.order_id, input.instrument, input.price, input.count, input.type == input_sell ? Side::SELL : Side::BUY, 0);
+                    input.order_id, input.instrument, input.price, input.count, input.type == input_sell ? Side::SELL : Side::BUY);
                 orders.insert({order->GetOrderId(), order});
                 std::shared_ptr<OrderBook> ob = GetOrderBook(order->GetInstrumentId());
 
