@@ -68,6 +68,7 @@
     "fstream": "cpp",
     "iomanip": "cpp",
     "utility": "cpp",
-    "any": "cpp"
+    "any": "cpp",
+    "memory": "cpp"
   }
 }
