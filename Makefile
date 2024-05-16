@@ -32,20 +32,22 @@ $(BUILD_TEST_DIR)/%: $(BUILD_TEST_DIR)/%.cpp.o
 clean:
 	rm -rf $(BUILDDIR)
 
-DEPFLAGS = -MT $@ -MMD -MP -MF $(BUILDDIR)/$<.d
+DEPFLAGS = -MT $@ -MMD -MP -MF $(BUILDDIR)/deps/$(notdir $<).d
 COMPILE.cpp = $(CXX) $(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
 COMPILE_TEST.cpp = $(CXX) $(DEPFLAGS) $(CXX_TEST_FLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
 
 $(BUILD_TEST_DIR)/%.cpp.o: tests/unit_tests/%.cpp | $(BUILD_TEST_DIR)
 	$(COMPILE_TEST.cpp) $(OUTPUT_OPTION) $<
 
-$(BUILDDIR)/%.cpp.o: %.cpp | $(BUILDDIR)
+$(BUILDDIR)/%.cpp.o: src/%.cpp | $(BUILDDIR)
 	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
 $(BUILDDIR): ; @mkdir -p $@
 
 $(BUILD_TEST_DIR): ; @mkdir -p $@
 
-DEPFILES := $(SRCS:%=$(BUILDDIR)/%.d) $(BUILDDIR)/client.cpp.d
+DEPFILES := $(SRCS:%=$(BUILDDIR)/src/%.d) $(BUILDDIR)/src/client.cpp.d $(BUILDDIR)/src/mygrader.cpp.d
+
+.INTERMEDIATE: $(SRCS:%=$(BUILDDIR)/%.o) $(BUILDDIR)/client.cpp.o $(BUILDDIR)/mygrader.cpp.o
 
 -include $(DEPFILES)
